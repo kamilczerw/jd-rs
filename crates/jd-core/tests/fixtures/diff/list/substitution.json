@@ -1,0 +1,35 @@
+{
+  "lhs": "[1,2,3]",
+  "rhs": "[1,4,3]",
+  "diff": [
+    {
+      "path": [
+        1
+      ],
+      "before": [
+        {
+          "type": "Number",
+          "value": 1
+        }
+      ],
+      "remove": [
+        {
+          "type": "Number",
+          "value": 2
+        }
+      ],
+      "add": [
+        {
+          "type": "Number",
+          "value": 4
+        }
+      ],
+      "after": [
+        {
+          "type": "Number",
+          "value": 3
+        }
+      ]
+    }
+  ]
+}

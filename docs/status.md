@@ -43,3 +43,19 @@
 ### Next Steps
 - Draft Milestone 3 tests for node constructors, number precision, and whitespace canonicalization before implementing the Rust data model.
 - Raise ADRs if Rust numeric representation or YAML decoding requires divergence from the Go float64 + gopkg.v2 approach.
+
+## Status — Milestone 4 (Diff Engine Recon)
+
+### Summary
+- Re-read the Go `DiffElement` definition to restate how path segments and list context (`Before`/`After`) encode everything required for patch application.
+- Traced the list-mode diff to confirm it hashes elements, runs an LCS to align common subsequences, and stitches nested container diffs in place while tracking positional context.
+- Verified object diffs walk keys in lexical order, emitting removals/additions with merge metadata parity when one side lacks a key.
+
+### Findings & References
+1. **DiffElement structure** – Each hunk carries metadata, a fully qualified path, and optional `Before`/`After` context arrays used only for list diffs. This matches `diff.go`'s definition and establishes the Rust struct fields we must mirror. [(v2.2.2/v2/diff.go#L3-L44)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/diff.go#L3-L44)
+2. **List diff algorithm** – The Go list diff hashes elements, computes an LCS via `golcs`, and then iterates with cursors to accumulate add/remove hunks, inserting nested diffs when encountering compatible containers and recording context for patch validation. [(v2.2.2/v2/list.go#L69-L249)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/list.go#L69-L249)
+3. **Object diff ordering and metadata** – Objects sort both key sets, recurse when keys exist on both sides, and otherwise emit deletion/addition hunks (switching to merge metadata when requested). [(v2.2.2/v2/object.go#L123-L209)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/object.go#L123-L209)
+
+### Next Steps
+- Draft the Milestone 4 diff engine component spec capturing struct definitions, algorithm stages, and hashing dependencies before writing tests.
+- Identify fixtures from the Go repository to snapshot as golden outputs for list-mode diff parity, then script their regeneration.

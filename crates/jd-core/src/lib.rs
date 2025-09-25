@@ -20,12 +20,14 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+pub mod diff;
 mod error;
 mod hash;
 mod node;
 mod number;
 mod options;
 
+pub use diff::{Diff, DiffElement, DiffMetadata, Path, PathSegment};
 pub use error::{CanonicalizeError, OptionsError};
 pub use node::Node;
 pub use number::Number;

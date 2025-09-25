@@ -215,6 +215,20 @@ impl Node {
         }
     }
 
+    /// Computes the structural diff between two nodes.
+    ///
+    /// ```
+    /// # use jd_core::{DiffOptions, Node};
+    /// let lhs = Node::from_json_str("1").unwrap();
+    /// let rhs = Node::from_json_str("2").unwrap();
+    /// let diff = lhs.diff(&rhs, &DiffOptions::default());
+    /// assert_eq!(diff.len(), 1);
+    /// ```
+    #[must_use]
+    pub fn diff(&self, other: &Self, options: &DiffOptions) -> crate::Diff {
+        crate::diff::diff_nodes(self, other, options)
+    }
+
     /// Computes the Go-compatible hash code for this node.
     #[must_use]
     pub fn hash_code(&self, options: &DiffOptions) -> HashCode {
