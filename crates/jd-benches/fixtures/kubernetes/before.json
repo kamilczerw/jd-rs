@@ -1,0 +1,101 @@
+{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "jd-api",
+    "namespace": "production",
+    "labels": {
+      "app": "jd",
+      "tier": "backend"
+    },
+    "annotations": {
+      "deployment.kubernetes.io/revision": "17",
+      "prometheus.io/scrape": "true"
+    }
+  },
+  "spec": {
+    "replicas": 5,
+    "strategy": {
+      "type": "RollingUpdate",
+      "rollingUpdate": {
+        "maxUnavailable": 1,
+        "maxSurge": 2
+      }
+    },
+    "selector": {
+      "matchLabels": {
+        "app": "jd"
+      }
+    },
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "jd",
+          "tier": "backend"
+        },
+        "annotations": {
+          "checksum/config": "0b4dcb4c"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "api",
+            "image": "ghcr.io/jd/api:2.2.2",
+            "imagePullPolicy": "IfNotPresent",
+            "ports": [
+              {
+                "containerPort": 8080,
+                "name": "http"
+              }
+            ],
+            "env": [
+              {
+                "name": "JD_ENV",
+                "value": "prod"
+              },
+              {
+                "name": "JD_FEATURE_FLAG",
+                "value": "baseline"
+              }
+            ],
+            "resources": {
+              "requests": {
+                "cpu": "500m",
+                "memory": "256Mi"
+              },
+              "limits": {
+                "cpu": "750m",
+                "memory": "384Mi"
+              }
+            },
+            "livenessProbe": {
+              "httpGet": {
+                "path": "/healthz",
+                "port": "http"
+              },
+              "initialDelaySeconds": 15,
+              "periodSeconds": 10
+            },
+            "readinessProbe": {
+              "httpGet": {
+                "path": "/ready",
+                "port": "http"
+              },
+              "initialDelaySeconds": 5,
+              "periodSeconds": 5
+            }
+          }
+        ],
+        "volumes": [
+          {
+            "name": "config",
+            "configMap": {
+              "name": "jd-config"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

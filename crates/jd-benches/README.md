@@ -4,14 +4,26 @@ Benchmark harness crate for the Rust port of the Go [`jd`](https://github.com/jo
 
 ## Usage
 
-No benchmarks are defined yet; the crate is part of the workspace scaffolding so that Criterion-based suites can be added in the dedicated performance milestone.
+Run the Criterion suite with:
+
+```shell
+cargo bench -p jd-benches
+```
+
+Benchmarks cover three corpora (`kubernetes-deployment`, `github-issue`, `large-array`) that mirror real workloads captured in `crates/jd-benches/fixtures/`.
 
 ## Examples
 
 ```rust
-assert!(!jd_benches::is_ready());
+use jd_benches::available_corpora;
+use jd_core::DiffOptions;
+
+let corpus = available_corpora().iter().find(|c| c.name() == "large-array").unwrap();
+let dataset = corpus.load().unwrap();
+let diff = dataset.diff(&DiffOptions::default());
+assert!(diff.len() > 0);
 ```
 
 ## Compatibility with Go jd
 
-Future benchmarks will measure parity scenarios against the Go implementation to verify performance targets. During the scaffolding milestone this crate intentionally contains only placeholders.
+Use `scripts/bench_vs_go.sh` to compare the Rust CLI (`cargo build --release -p jd-cli`) with the Go 2.2.2 binary on the same corpora. The script records wall time and peak RSS for both implementations, enabling parity tracking across releases.
