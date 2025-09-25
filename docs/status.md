@@ -104,3 +104,21 @@
 ### Next Steps
 - Expand renderer coverage with larger fixtures and cross-implementation parity snapshots, especially for set/multiset semantics slated for later milestones.
 - Begin wiring CLI render mode flags (`-n`, `-p`, `-m`, etc.) to the new renderer APIs while preserving merge/set metadata behavior for future work.
+
+## Status — Milestone 7 (CLI Parity & UX Recon)
+
+### Summary
+- Re-verified the Go CLI flag definitions, usage banner, and mutually exclusive mode handling so the Rust CLI can mirror them exactly.
+- Confirmed argument arity rules for diff, patch, translate, and git diff driver modes, including stdout/stderr/exit-code semantics for each path.
+- Documented that colorized output is only enabled when `-color` is passed; there is no upstream `-nocolor` flag or `NO_COLOR` environment override.
+
+### Findings & References
+1. **Flag surface & version handling** – The CLI exposes the `-color`, `-f`, `-git-diff-driver`, `-mset`, `-o`, `-p`, `-port`, `-precision`, `-set`, `-setkeys`, `-t`, `-version`, `-yaml`, and deprecated `-v2` flags; `-version` prints `jd version 2.2.2` and exits. Mode selection rejects simultaneous `-p` and `-t`. [(v2.2.2/v2/jd/main.go#L18-L111)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/jd/main.go#L18-L111)
+2. **Usage banner & exit codes** – `printUsageAndExit` emits the documented multi-line banner (including blank lines and examples) before exiting with status 2. [(v2.2.2/v2/jd/main.go#L157-L199)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/jd/main.go#L157-L199)
+3. **Argument arity & IO routing** – Diff/patch modes accept one or two positional arguments (second input defaults to STDIN), translate accepts zero or one, and git diff driver requires seven arguments; diff exits 1 when changes are detected, otherwise 0, while patch/translate always exit 0 on success. [(v2.2.2/v2/jd/main.go#L72-L379)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/jd/main.go#L72-L379)
+4. **Color behavior** – The renderer only adds `jd.COLOR` when `-color` is supplied; there is no automatic TTY detection or `NO_COLOR` handling in upstream. [(v2.2.2/v2/jd/main.go#L229-L283)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/jd/main.go#L229-L283)
+
+### Next Steps
+- Mirror these flag definitions and mutually exclusive combinations in the Clap-based parser.
+- Add argument arity validation tests and snapshots that assert exit codes and help/usage text match upstream.
+- Reflect the absence of auto color toggles when reconciling the implementation plan for Milestone 7.
