@@ -44,6 +44,22 @@ impl DiffMetadata {
         Self { merge: true, set_keys: None, color: None }
     }
 
+    pub(crate) fn is_effective(&self) -> bool {
+        self.merge || self.set_keys.is_some() || self.color.is_some()
+    }
+
+    pub(crate) fn absorb(&mut self, other: &Self) {
+        if other.merge {
+            self.merge = true;
+        }
+        if let Some(keys) = &other.set_keys {
+            self.set_keys = Some(keys.clone());
+        }
+        if let Some(color) = other.color {
+            self.color = Some(color);
+        }
+    }
+
     fn render_header(&self) -> String {
         if self.merge {
             "^ {\"Merge\":true}\n".to_string()
@@ -456,13 +472,18 @@ impl Diff {
             Vec::with_capacity(self.elements.len());
         let mut inherited: Option<DiffMetadata> = None;
         for element in &self.elements {
-            if let Some(metadata) = element.metadata.clone() {
-                inherited = Some(metadata);
+            if let Some(metadata) = element.metadata.as_ref().filter(|meta| meta.is_effective()) {
+                if let Some(existing) = inherited.as_mut() {
+                    existing.absorb(metadata);
+                } else {
+                    inherited = Some(metadata.clone());
+                }
             }
             active_metadata.push(inherited.clone());
         }
 
         let mut reversed = Vec::with_capacity(self.elements.len());
+        let mut last_emitted: Option<DiffMetadata> = None;
 
         for (index, element) in self.elements.iter().enumerate().rev() {
             let metadata = active_metadata[index].clone();
@@ -475,10 +496,19 @@ impl Diff {
 
             let mut clone = element.clone();
             std::mem::swap(&mut clone.remove, &mut clone.add);
-            if metadata.is_some() {
-                clone.metadata = metadata;
-            } else {
-                clone.metadata = None;
+            match metadata {
+                Some(meta) => {
+                    if last_emitted.as_ref() != Some(&meta) {
+                        clone.metadata = Some(meta.clone());
+                        last_emitted = Some(meta);
+                    } else {
+                        clone.metadata = None;
+                    }
+                }
+                None => {
+                    clone.metadata = None;
+                    last_emitted = None;
+                }
             }
             reversed.push(clone);
         }

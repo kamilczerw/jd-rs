@@ -70,10 +70,14 @@ pub(crate) fn apply_patch(node: &Node, diff: &Diff) -> Result<Node, PatchError> 
     let mut current = node.clone();
     let mut inherited_metadata: Option<DiffMetadata> = None;
     for element in diff.iter() {
-        if let Some(meta) = element.metadata.as_ref() {
-            inherited_metadata = Some(meta.clone());
+        if let Some(meta) = element.metadata.as_ref().filter(|metadata| metadata.is_effective()) {
+            if let Some(existing) = inherited_metadata.as_mut() {
+                existing.absorb(meta);
+            } else {
+                inherited_metadata = Some(meta.clone());
+            }
         }
-        let metadata = element.metadata.as_ref().or(inherited_metadata.as_ref());
+        let metadata = inherited_metadata.as_ref().filter(|metadata| metadata.is_effective());
         let strategy = PatchStrategy::from_metadata(metadata);
         current = patch_element(
             current,

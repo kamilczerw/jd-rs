@@ -75,6 +75,11 @@
 1. **Patch dispatch strategy** – `patchAll` iterates diff elements, switching between strict and merge strategies based on metadata before delegating to node-specific `patch` implementations, while enforcing single-value replacements for non-set modes. [(v2.2.2/patch_common.go#L7-L65)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/patch_common.go#L7-L65)
 2. **List patch semantics** – `jsonList.patch` handles whole-list replacements, recursive descent, append-at-`-1`, before/after context verification, and strict removal validation with detailed error strings. [(v2.2.2/v2/list.go#L313-L415)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/list.go#L313-L415)
 3. **Object patch semantics** – `jsonObject.patch` checks merge metadata, ensures strict replacements verify prior values, auto-creates nested objects for merge strategy, and deletes entries when child patches return void. [(v2.2.2/v2/object.go#L216-L271)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/object.go#L216-L271)
+
+### Additional Findings (Milestone 5 Follow-up)
+- **Strategy inheritance & merge path constraints** – Confirmed `patchAll` clones an empty path for each element and `patch` enforces merge-only traversal beyond leaves, rejecting non-string keys during merge descent. [(v2.2.2/v2/patch_common.go#L7-L45)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/patch_common.go#L7-L45)
+- **List context enforcement order** – Verified list patching checks before-context indices relative to insertion point prior to executing removals, mirroring Go's `invalid patch. before context …` errors and ensuring `-1` append forbids removals. [(v2.2.2/v2/list.go#L323-L409)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/list.go#L323-L409)
+- **Merge object materialization** – Noted object patch creates intermediate objects (or void leaves) under merge strategy when keys are absent, then deletes map entries whenever recursive patches return `void`. [(v2.2.2/v2/object.go#L244-L271)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/object.go#L244-L271)
 4. **End-to-end invariants** – `TestDiffAndPatch` exercises diff→patch round-trips (including JSON Patch rendering) establishing parity expectations for success and failure cases we must replicate. [(v2.2.2/v2/e2e_test.go#L7-L159)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/e2e_test.go#L7-L159)
 
 ### Next Steps
