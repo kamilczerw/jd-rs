@@ -10,5 +10,7 @@ publish = false
 [dependencies]
 jd-core = { path = "../jd-core" }
 anyhow = { workspace = true }
+arbitrary = "1.3"
+serde_json = { workspace = true }
 
 [dev-dependencies]

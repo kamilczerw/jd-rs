@@ -1,4 +1,4 @@
-use jd_core::{DiffOptions, Node};
+use jd_core::{diff::PathSegment, Diff, DiffElement, DiffMetadata, DiffOptions, Node};
 use proptest::prop_assert_eq;
 
 #[test]
@@ -27,6 +27,30 @@ fn apply_patch_list_context_validation_errors() {
     let mismatched = Node::from_json_str("[0,2,3]").unwrap();
     let err = mismatched.apply_patch(&diff).expect_err("patch should fail due to context mismatch");
     assert_eq!(err.to_string(), "invalid patch. expected 1 before. got 0");
+}
+
+#[test]
+fn apply_patch_rejects_multiple_removals() {
+    let element = DiffElement::new()
+        .with_path(Vec::<PathSegment>::new())
+        .with_remove(vec![Node::from_json_str("1").unwrap(), Node::from_json_str("2").unwrap()]);
+    let diff = Diff::from_elements(vec![element]);
+    let base = Node::from_json_str("1").unwrap();
+    let err = base.apply_patch(&diff).expect_err("should reject multi-removal");
+    assert_eq!(err.to_string(), "invalid diff: multiple removals from non-set at []");
+}
+
+#[test]
+fn apply_patch_rejects_merge_old_value() {
+    let element = DiffElement::new()
+        .with_metadata(DiffMetadata::merge())
+        .with_path(PathSegment::key("a"))
+        .with_remove(vec![Node::from_json_str("1").unwrap()])
+        .with_add(vec![Node::from_json_str("2").unwrap()]);
+    let diff = Diff::from_elements(vec![element]);
+    let base = Node::from_json_str("{\"a\":1}").unwrap();
+    let err = base.apply_patch(&diff).expect_err("merge should reject old value");
+    assert_eq!(err.to_string(), "patch with merge strategy at [a] has unnecessary old value 1");
 }
 
 fn arb_json_value() -> impl proptest::strategy::Strategy<Value = serde_json::Value> {
@@ -72,5 +96,16 @@ proptest::proptest! {
         let reverse = b.diff(&a, &opts);
         let restored = b.apply_patch(&reverse).unwrap();
         prop_assert_eq!(restored, a);
+    }
+
+    #[test]
+    fn empty_diff_is_idempotent(a_json in arb_json_value()) {
+        let node = Node::from_json_value(a_json.clone()).unwrap();
+        let diff = Diff::default();
+        let expected = node.clone();
+        let once = node.apply_patch(&diff).unwrap();
+        prop_assert_eq!(once.clone(), expected.clone());
+        let twice = once.apply_patch(&diff).unwrap();
+        prop_assert_eq!(twice, expected);
     }
 }

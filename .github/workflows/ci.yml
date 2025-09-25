@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "0 3 * * *"
 
 jobs:
   lint-test:
@@ -26,3 +28,19 @@ jobs:
         uses: EmbarkStudios/cargo-deny-action@v1
         with:
           command: check
+  fuzz-smoke:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+      - name: Install cargo-fuzz
+        run: cargo install cargo-fuzz
+      - name: Canonicalize fuzz smoke
+        run: cargo fuzz run canonicalize -- -runs=256
+      - name: Diff fuzz smoke
+        run: cargo fuzz run diff -- -runs=256
+      - name: Patch apply fuzz smoke
+        run: cargo fuzz run patch_apply -- -runs=256

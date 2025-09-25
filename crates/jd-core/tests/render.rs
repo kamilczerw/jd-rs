@@ -157,4 +157,14 @@ proptest! {
         let backward = b.apply_patch(&reversed).unwrap();
         prop_assert_eq!(backward, a);
     }
+
+    #[test]
+    fn reverse_is_involution(a_json in arb_json_value(), b_json in arb_json_value()) {
+        let a = Node::from_json_value(a_json.clone()).unwrap();
+        let b = Node::from_json_value(b_json.clone()).unwrap();
+        let diff = a.diff(&b, &DiffOptions::default());
+        let reversed = diff.reverse().unwrap();
+        let round_trip = reversed.reverse().unwrap();
+        prop_assert_eq!(round_trip, diff);
+    }
 }
