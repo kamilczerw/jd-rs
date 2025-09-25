@@ -1,0 +1,8 @@
+@ ["config","retries"]
+- 1
++ 2
+@ ["config","timeout"]
+- "5s"
++ "10s"
+@ ["config","endpoint"]
++ "https://api.example.com"

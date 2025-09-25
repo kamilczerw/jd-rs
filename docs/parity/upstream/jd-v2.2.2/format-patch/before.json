@@ -1,0 +1,1 @@
+{"services":[{"name":"api","replicas":2},{"name":"worker","replicas":1}]}

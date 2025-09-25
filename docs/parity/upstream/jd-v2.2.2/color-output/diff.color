@@ -1,0 +1,9 @@
+@ ["items",1]
+  "apple"
+- "b[31ma[0m[31mn[0m[31ma[0m[31mn[0m[31ma[0m"
++ "b[32ml[0m[32mu[0m[32me[0m[32mb[0m[32me[0m[32mr[0m[32mr[0m[32my[0m"
+  "cherry"
+@ ["items",3]
+  "cherry"
+[32m+ "date"
+[0m]
