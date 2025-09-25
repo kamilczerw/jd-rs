@@ -1,5 +1,10 @@
 [workspace]
-members = []
+members = [
+  "crates/jd-core",
+  "crates/jd-cli",
+  "crates/jd-fuzz",
+  "crates/jd-benches",
+]
 resolver = "2"
 
 [workspace.package]
@@ -23,6 +28,8 @@ tracing-subscriber = { version = "0.3.19", features = [
   "fmt",
   "json",
 ] }
+assert_cmd = "2.0"
+predicates = "3.1"
 
 [workspace.lints.clippy]
 all = "deny"

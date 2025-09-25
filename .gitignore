@@ -1,5 +1,10 @@
 # Rust
 /target
+**/*.profraw
+fuzz/artifacts/
+fuzz/corpus/
+fuzz/coverage/
+dist/
 
 # Nix
 .direnv/
