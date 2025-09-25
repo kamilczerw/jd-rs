@@ -1,25 +1,37 @@
-//! Core library for the Rust port of the `jd` JSON diff tool.
+//! Core primitives for the Rust port of the `jd` JSON diff tool.
 //!
-//! This crate will eventually expose the data model, canonicalization
-//! pipeline, diff engine, and patch application APIs that mirror the Go
-//! implementation. During the workspace scaffolding milestone it only
-//! provides version metadata to enable smoke tests and doctest coverage.
-//!
-//! # Examples
+//! The crate currently exposes the canonical data model used by the diff
+//! engine together with helpers for parsing JSON/YAML inputs into the
+//! canonical representation. Future milestones will extend this module with
+//! diffing, patching, rendering, and canonicalization pipelines that mirror
+//! the Go implementation.
 //!
 //! ```
-//! use jd_core::version;
+//! use jd_core::{Node, DiffOptions};
 //!
-//! assert!(version().starts_with('0'));
+//! // Parse two JSON fragments and compare them structurally.
+//! let lhs = Node::from_json_str("{\"name\": \"jd\", \"version\": 2}")?;
+//! let rhs = Node::from_json_str("{\"version\": 2, \"name\": \"jd\"}")?;
+//!
+//! let opts = DiffOptions::default();
+//! assert!(lhs.eq_with_options(&rhs, &opts));
+//! # Ok::<(), jd_core::CanonicalizeError>(())
 //! ```
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+mod error;
+mod hash;
+mod node;
+mod number;
+mod options;
+
+pub use error::{CanonicalizeError, OptionsError};
+pub use node::Node;
+pub use number::Number;
+pub use options::{ArrayMode, DiffOptions};
+
 /// Returns the semantic version of the `jd-core` crate.
-///
-/// The value is sourced from the crate metadata at compile time. This
-/// helper keeps doctests alive while the rest of the surface is still
-/// under construction.
 ///
 /// ```
 /// assert!(!jd_core::version().is_empty());

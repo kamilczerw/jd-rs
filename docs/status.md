@@ -26,3 +26,20 @@
 ### Next Steps
 - Implement Milestone 2 workspace scaffolding with tooling configuration, ensuring initial CLI stubs and smoke tests reflect the documented usage/help structure.
 - Capture any scaffolding-related deviations as ADRs before proceeding to code-level changes.
+
+## Status — Milestone 3 (Data Model & Canonicalization Recon)
+
+### Summary
+- Re-read the upstream node construction code to confirm how Go normalizes native maps, slices, and scalars into JsonNode implementations prior to diffing.
+- Revalidated the JSON/YAML reader helpers so our Rust canonicalization layer mirrors whitespace handling, error propagation, and the void sentinel semantics.
+- Cataloged scalar behaviors (numbers, strings, void) to ensure our tests cover precision tolerances and empty-input rendering before we start coding the Rust equivalents.
+
+### Findings & References
+1. **Node construction surface** – `NewJsonNode` recursively converts `map[string]interface{}` and `[]interface{}` values into concrete node types, while rejecting YAML-style `map[interface{}]interface{}` keys that are not strings. This guarantees canonical object keys and is the behavior we must replicate. [(v2.2.2/v2/node.go#L8-L86)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/node.go#L8-L86)
+2. **Whitespace-to-void canonicalization** – The shared `unmarshal` helper trims input and returns `voidNode{}` when the payload is empty or whitespace-only before calling the JSON/YAML decoder. Errors bubble directly from the decoder. [(v2.2.2/v2/node_read.go#L8-L44)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/node_read.go#L8-L44)
+3. **Numeric equality semantics** – Numeric nodes are stored as `float64` (`jsonNumber`) and equality tolerates differences up to the user-provided `-precision` option (default 0). We'll need parity tests around this float-based tolerance. [(v2.2.2/v2/number.go#L5-L44)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/number.go#L5-L44)
+4. **Void rendering** – `voidNode` renders to empty JSON/YAML strings and carries a deterministic hash, which impacts canonical rendering tests and diff behavior when inputs are missing. [(v2.2.2/v2/void.go#L1-L46)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/void.go#L1-L46)
+
+### Next Steps
+- Draft Milestone 3 tests for node constructors, number precision, and whitespace canonicalization before implementing the Rust data model.
+- Raise ADRs if Rust numeric representation or YAML decoding requires divergence from the Go float64 + gopkg.v2 approach.
