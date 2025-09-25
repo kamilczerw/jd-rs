@@ -1,0 +1,44 @@
+{
+  "name": "merge_object",
+  "lhs": "{\"config\":{\"enabled\":false}}",
+  "rhs": "{\"config\":{\"enabled\":true,\"threshold\":5}}",
+  "options": [
+    "merge"
+  ],
+  "diff": [
+    {
+      "metadata": {
+        "merge": true
+      },
+      "path": [
+        "config",
+        "enabled"
+      ],
+      "add": [
+        {
+          "type": "Bool",
+          "value": true
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "merge": true
+      },
+      "path": [
+        "config",
+        "threshold"
+      ],
+      "add": [
+        {
+          "type": "Number",
+          "value": 5
+        }
+      ]
+    }
+  ],
+  "render": {
+    "native": "^ {\"Merge\":true}\n@ [\"config\",\"enabled\"]\n+ true\n^ {\"Merge\":true}\n@ [\"config\",\"threshold\"]\n+ 5\n",
+    "merge": "{\"config\":{\"enabled\":true,\"threshold\":5}}"
+  }
+}

@@ -15,7 +15,7 @@ pub use path::{path_from_segments, root_path, Path, PathSegment};
 use serde::{Deserialize, Serialize};
 use serde_json::{self, Number as JsonNumber, Value as JsonValue};
 
-use crate::{ArrayMode, DiffOptions, Node, PatchError};
+use crate::{ArrayMode, DiffOptions, Node, Number, PatchError};
 
 /// Metadata associated with a diff element.
 ///
@@ -699,8 +699,7 @@ fn path_to_json(path: &Path) -> String {
         match segment {
             PathSegment::Key(key) => values.push(JsonValue::String(key.clone())),
             PathSegment::Index(index) => {
-                let number =
-                    JsonNumber::from_f64(*index as f64).expect("diff indices are finite values");
+                let number = json_number_from_f64(*index as f64);
                 values.push(JsonValue::Number(number));
             }
         }
@@ -742,15 +741,7 @@ fn escape_pointer_segment(segment: &str) -> String {
 }
 
 fn json_number_from_f64(value: f64) -> JsonNumber {
-    if value.fract() == 0.0 {
-        if (i64::MIN as f64) <= value && value <= (i64::MAX as f64) {
-            return JsonNumber::from(value as i64);
-        }
-        if value >= 0.0 && value <= (u64::MAX as f64) {
-            return JsonNumber::from(value as u64);
-        }
-    }
-    JsonNumber::from_f64(value).expect("finite number")
+    Number::new(value).expect("finite number").to_json_number()
 }
 
 fn color_string_diff(text: &str, common: &[char], color: &str) -> String {

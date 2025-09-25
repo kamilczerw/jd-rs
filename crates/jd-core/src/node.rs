@@ -155,7 +155,7 @@ impl Node {
             Self::Void => None,
             Self::Null => Some(JsonValue::Null),
             Self::Bool(v) => Some(JsonValue::Bool(*v)),
-            Self::Number(n) => serde_json::Number::from_f64(n.get()).map(JsonValue::Number),
+            Self::Number(n) => Some(JsonValue::Number(n.to_json_number())),
             Self::String(s) => Some(JsonValue::String(s.clone())),
             Self::Array(values) => {
                 let mut result = Vec::with_capacity(values.len());
@@ -385,6 +385,17 @@ mod tests {
     }
 
     #[test]
+    fn json_number_to_json_value_is_minimal() {
+        let node = Node::from_json_str("5").unwrap();
+        let value = node.to_json_value().unwrap();
+        assert_eq!(value, serde_json::json!(5));
+
+        let neg_zero = Node::from_json_str("-0").unwrap();
+        let neg_zero_value = neg_zero.to_json_value().unwrap();
+        assert_eq!(serde_json::to_string(&neg_zero_value).unwrap(), "-0.0");
+    }
+
+    #[test]
     fn json_number_out_of_range_yields_error() {
         let err = Node::from_json_str("1e400").unwrap_err();
         match err {
@@ -432,9 +443,10 @@ mod tests {
         fn json_roundtrips_through_node(value in arb_json_value()) {
             let node = Node::from_json_value(value.clone()).unwrap();
             let reconstructed = node.to_json_value().unwrap();
-            prop_assert_eq!(reconstructed.clone(), value);
-            let node_again = Node::from_json_value(reconstructed).unwrap();
-            prop_assert_eq!(node_again, node);
+            let node_again = Node::from_json_value(reconstructed.clone()).unwrap();
+            prop_assert_eq!(node_again.clone(), node);
+            let reconstructed_again = node_again.to_json_value().unwrap();
+            prop_assert_eq!(reconstructed_again, reconstructed);
         }
     }
 }

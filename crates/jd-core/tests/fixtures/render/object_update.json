@@ -1,0 +1,45 @@
+{
+  "name": "object_update",
+  "lhs": "{\"a\":1,\"b\":2}",
+  "rhs": "{\"a\":2,\"b\":3}",
+  "diff": [
+    {
+      "path": [
+        "a"
+      ],
+      "remove": [
+        {
+          "type": "Number",
+          "value": 1
+        }
+      ],
+      "add": [
+        {
+          "type": "Number",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "path": [
+        "b"
+      ],
+      "remove": [
+        {
+          "type": "Number",
+          "value": 2
+        }
+      ],
+      "add": [
+        {
+          "type": "Number",
+          "value": 3
+        }
+      ]
+    }
+  ],
+  "render": {
+    "native": "@ [\"a\"]\n- 1\n+ 2\n@ [\"b\"]\n- 2\n+ 3\n",
+    "patch": "[{\"op\":\"test\",\"path\":\"/a\",\"value\":1},{\"op\":\"remove\",\"path\":\"/a\",\"value\":1},{\"op\":\"add\",\"path\":\"/a\",\"value\":2},{\"op\":\"test\",\"path\":\"/b\",\"value\":2},{\"op\":\"remove\",\"path\":\"/b\",\"value\":2},{\"op\":\"add\",\"path\":\"/b\",\"value\":3}]"
+  }
+}

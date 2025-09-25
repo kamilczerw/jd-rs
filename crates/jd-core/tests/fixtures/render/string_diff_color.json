@@ -1,0 +1,27 @@
+{
+  "name": "string_diff_color",
+  "lhs": "\"kitten\"",
+  "rhs": "\"sitting\"",
+  "diff": [
+    {
+      "path": [],
+      "remove": [
+        {
+          "type": "String",
+          "value": "kitten"
+        }
+      ],
+      "add": [
+        {
+          "type": "String",
+          "value": "sitting"
+        }
+      ]
+    }
+  ],
+  "render": {
+    "native": "@ []\n- \"kitten\"\n+ \"sitting\"\n",
+    "native_color": "@ []\n- \"\u001b[31mk\u001b[0mitt\u001b[31me\u001b[0mn\"\n+ \"\u001b[32ms\u001b[0mitt\u001b[32mi\u001b[0mn\u001b[32mg\u001b[0m\"\n",
+    "patch": "[{\"op\":\"test\",\"path\":\"\",\"value\":\"kitten\"},{\"op\":\"remove\",\"path\":\"\",\"value\":\"kitten\"},{\"op\":\"add\",\"path\":\"\",\"value\":\"sitting\"}]"
+  }
+}

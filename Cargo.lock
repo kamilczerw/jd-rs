@@ -445,6 +445,9 @@ dependencies = [
  "clap",
  "jd-core",
  "predicates",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

@@ -1,0 +1,37 @@
+{
+  "name": "list_append",
+  "lhs": "[1,2]",
+  "rhs": "[1,2,3,4]",
+  "diff": [
+    {
+      "path": [
+        2
+      ],
+      "before": [
+        {
+          "type": "Number",
+          "value": 2
+        }
+      ],
+      "add": [
+        {
+          "type": "Number",
+          "value": 3
+        },
+        {
+          "type": "Number",
+          "value": 4
+        }
+      ],
+      "after": [
+        {
+          "type": "Void"
+        }
+      ]
+    }
+  ],
+  "render": {
+    "native": "@ [2]\n  2\n+ 3\n+ 4\n]\n",
+    "patch": "[{\"op\":\"test\",\"path\":\"/1\",\"value\":2},{\"op\":\"add\",\"path\":\"/2\",\"value\":4},{\"op\":\"add\",\"path\":\"/2\",\"value\":3}]"
+  }
+}
