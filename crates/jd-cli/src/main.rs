@@ -99,7 +99,7 @@ struct Cli {
     #[arg(long = "port")]
     port: Option<u16>,
 
-    /// Positional inputs (FILE1 [FILE2]).
+    /// Positional inputs (FILE1 \[FILE2]).
     #[arg()]
     inputs: Vec<OsString>,
 }

@@ -51,3 +51,13 @@ go           large-array              0.048685   12256        0
 
 The Python fallback (triggered here because `/usr/bin/time` is unavailable) reports elapsed seconds using `time.perf_counter` and RSS via `resource.getrusage`. Exit code `0` reflects that both CLIs normalise the inputs identically with no structural differences detected for these fixtures.【9a0bb5†L1-L4】【16aad0†L1-L6】【e0c508†L1-L2】
 
+## CI guardrails
+
+Continuous integration executes the Criterion suite with `cargo bench -p jd-benches --bench smoke -- --noplot --save-baseline current` and compares the medians against the committed baseline in `crates/jd-benches/baselines/criterion-ci.json`. The helper script below enforces a 1.25× regression tolerance and emits GitHub Actions annotations on failure:
+
+```shell
+scripts/check_bench_regressions.py --run-name current
+```
+
+To refresh the baseline after a verified performance improvement, rerun the bench locally, inspect the new results under `target/criterion`, and update the JSON file alongside an entry in the changelog or ADR capturing the change rationale.
+

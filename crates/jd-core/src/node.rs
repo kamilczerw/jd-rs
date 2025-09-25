@@ -41,9 +41,8 @@ impl Node {
     ///
     /// ```
     /// # use jd_core::Node;
-    /// let node = Node::from_json_str("{\"hello\":\"world\"}")?;
+    /// let node = Node::from_json_str("{\"hello\":\"world\"}").expect("valid JSON");
     /// assert!(matches!(node, Node::Object(_)));
-    /// # Ok::<(), jd_core::CanonicalizeError>(())
     /// ```
     pub fn from_json_str(input: &str) -> Result<Self, CanonicalizeError> {
         if input.trim().is_empty() {
@@ -57,9 +56,8 @@ impl Node {
     ///
     /// ```
     /// # use jd_core::Node;
-    /// let node = Node::from_yaml_str("---\nanswer: 42\n")?;
+    /// let node = Node::from_yaml_str("---\nanswer: 42\n").expect("valid YAML");
     /// assert!(matches!(node, Node::Object(_)));
-    /// # Ok::<(), jd_core::CanonicalizeError>(())
     /// ```
     pub fn from_yaml_str(input: &str) -> Result<Self, CanonicalizeError> {
         if input.trim().is_empty() {
@@ -70,6 +68,13 @@ impl Node {
     }
 
     /// Converts a serde JSON value into a [`Node`].
+    ///
+    /// ```
+    /// # use jd_core::Node;
+    /// let value = serde_json::json!({"a": 1});
+    /// let node = Node::from_json_value(value).expect("convert value");
+    /// assert!(matches!(node, Node::Object(_)));
+    /// ```
     pub fn from_json_value(value: JsonValue) -> Result<Self, CanonicalizeError> {
         match value {
             JsonValue::Null => Ok(Self::Null),
@@ -149,6 +154,15 @@ impl Node {
     /// Returns `None` when the node contains the `Void` sentinel (either at the
     /// root or nested within arrays/objects) because `serde_json::Value` cannot
     /// represent the absence of a value.
+    ///
+    /// ```
+    /// # use jd_core::Node;
+    /// let node = Node::from_json_str("{\"a\":1}").expect("valid JSON");
+    /// let json = node.to_json_value().unwrap();
+    /// assert_eq!(json["a"].as_i64().unwrap(), 1);
+    /// let void = Node::Void;
+    /// assert!(void.to_json_value().is_none());
+    /// ```
     #[must_use]
     pub fn to_json_value(&self) -> Option<JsonValue> {
         match self {
@@ -178,11 +192,12 @@ impl Node {
     ///
     /// ```
     /// # use jd_core::{ArrayMode, DiffOptions, Node};
-    /// let lhs = Node::from_json_str("[1,2]")?;
-    /// let rhs = Node::from_json_str("[2,1]")?;
-    /// let opts = DiffOptions::default().with_array_mode(ArrayMode::Set).expect("set mode");
+    /// let lhs = Node::from_json_str("[1,2]").expect("valid JSON");
+    /// let rhs = Node::from_json_str("[2,1]").expect("valid JSON");
+    /// let opts = DiffOptions::default()
+    ///     .with_array_mode(ArrayMode::Set)
+    ///     .expect("set mode");
     /// assert!(lhs.eq_with_options(&rhs, &opts));
-    /// # Ok::<(), jd_core::CanonicalizeError>(())
     /// ```
     #[must_use]
     pub fn eq_with_options(&self, other: &Self, options: &DiffOptions) -> bool {
@@ -233,18 +248,25 @@ impl Node {
     ///
     /// ```
     /// # use jd_core::{DiffOptions, Node};
-    /// let base = Node::from_json_str("[1,2,3]")?;
-    /// let target = Node::from_json_str("[1,4,3]")?;
+    /// let base = Node::from_json_str("[1,2,3]").expect("valid JSON");
+    /// let target = Node::from_json_str("[1,4,3]").expect("valid JSON");
     /// let diff = base.diff(&target, &DiffOptions::default());
-    /// let patched = base.apply_patch(&diff)?;
+    /// let patched = base.apply_patch(&diff).expect("apply diff");
     /// assert_eq!(patched, target);
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn apply_patch(&self, diff: &crate::Diff) -> Result<Self, PatchError> {
         crate::patch::apply_patch(self, diff)
     }
 
     /// Computes the Go-compatible hash code for this node.
+    ///
+    /// ```
+    /// # use jd_core::{DiffOptions, Node};
+    /// let node = Node::from_json_str("{\"x\":true}").expect("valid JSON");
+    /// let hash = node.hash_code(&DiffOptions::default());
+    /// assert_eq!(hash.len(), 8);
+    /// # Ok::<_, jd_core::CanonicalizeError>(())
+    /// ```
     #[must_use]
     pub fn hash_code(&self, options: &DiffOptions) -> HashCode {
         match self {
