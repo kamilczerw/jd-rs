@@ -190,7 +190,7 @@ mod tests {
         for corpus in available_corpora() {
             let dataset = corpus.load().expect("fixture parse");
             let diff = dataset.diff(&DiffOptions::default());
-            assert!(diff.len() > 0, "{} should produce a diff", corpus.name());
+            assert!(!diff.is_empty(), "{} should produce a diff", corpus.name());
         }
     }
 }

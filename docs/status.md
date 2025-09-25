@@ -174,3 +174,16 @@
 ### Next Steps
 - Extend the GitHub Actions workflow with a stable/beta toolchain matrix across Linux, macOS, and Windows including fmt, clippy, tests, doc builds, coverage, and cargo-deny.
 - Integrate coverage and benchmark gating scripts while preparing release notes that summarize parity and performance relative to the Go implementation.
+
+## Status — Milestone 10 (Final Review & Handoff)
+
+### Summary
+- Regenerated golden fixtures after confirming Go's `Diff.RenderPatch` reverses list additions in place so we now snapshot the diff before invoking renderers.
+- Re-ran the Go/Rust parity harness and core test suite to validate byte-for-byte outputs prior to handoff.
+- Updated the cargo-deny configuration to the 0.18 schema so advisory and license gates continue working with the current tooling.
+
+### Findings & References
+1. **RenderPatch mutates additions** – The upstream `Diff.RenderPatch` implementation calls `slices.Reverse` on each element's `Add` slice, so fixture generation must capture the diff before rendering to preserve addition ordering parity.【b6fb49†L1-L61】
+
+### Next Steps
+- Deliver the final report, archive parity artifacts, and prepare the repository for release tagging.

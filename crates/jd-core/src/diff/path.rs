@@ -46,7 +46,7 @@ impl fmt::Display for PathSegment {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Key(key) => f.write_str(key),
-            Self::Index(index) => write!(f, "{}", index),
+            Self::Index(index) => write!(f, "{index}"),
         }
     }
 }
@@ -226,7 +226,7 @@ impl fmt::Display for Path {
             if idx > 0 {
                 f.write_str(" ")?;
             }
-            write!(f, "{}", segment)?;
+            write!(f, "{segment}")?;
         }
         f.write_str("]")
     }

@@ -49,7 +49,7 @@ enum PatchStrategy {
 
 impl PatchStrategy {
     fn from_metadata(metadata: Option<&DiffMetadata>) -> Self {
-        if metadata.map_or(false, |m| m.merge) {
+        if metadata.is_some_and(|m| m.merge) {
             Self::Merge
         } else {
             Self::Strict
@@ -93,6 +93,8 @@ pub(crate) fn apply_patch(node: &Node, diff: &Diff) -> Result<Node, PatchError> 
     Ok(current)
 }
 
+// Mirrors the Go implementation signature for parity with the CLI contract.
+#[allow(clippy::too_many_arguments)]
 fn patch_element(
     node: Node,
     path_behind: Vec<PathSegment>,
@@ -160,6 +162,8 @@ fn patch_element(
     }
 }
 
+// Mirrors the Go implementation signature for parity with the CLI contract.
+#[allow(clippy::too_many_arguments)]
 fn patch_scalar(
     node: Node,
     path_behind: Vec<PathSegment>,
@@ -199,6 +203,8 @@ fn patch_scalar(
     Ok(new_value)
 }
 
+// Mirrors the Go implementation signature for parity with the CLI contract.
+#[allow(clippy::too_many_arguments)]
 fn patch_object(
     mut map: BTreeMap<String, Node>,
     path_behind: Vec<PathSegment>,
@@ -260,6 +266,8 @@ fn patch_object(
     Ok(Node::Object(map))
 }
 
+// Mirrors the Go implementation signature for parity with the CLI contract.
+#[allow(clippy::too_many_arguments)]
 fn patch_list(
     list: Vec<Node>,
     path_behind: Vec<PathSegment>,
@@ -312,7 +320,7 @@ fn patch_list(
 
     if !rest.is_empty() {
         if *raw_index < 0 || (*raw_index as usize) >= list.len() {
-            return Err(PatchError::new(format!("patch index out of bounds: {}", raw_index)));
+            return Err(PatchError::new(format!("patch index out of bounds: {raw_index}")));
         }
         let mut new_path = path_behind.clone();
         new_path.push(PathSegment::Index(*raw_index));
@@ -335,7 +343,7 @@ fn patch_list(
     }
 
     if *raw_index < 0 {
-        return Err(PatchError::new(format!("patch index out of bounds: {}", raw_index)));
+        return Err(PatchError::new(format!("patch index out of bounds: {raw_index}")));
     }
 
     let insertion_index = *raw_index as usize;
@@ -349,9 +357,8 @@ fn patch_list(
                 continue;
             }
             return Err(PatchError::new(format!(
-                "invalid patch. before context {} out of bounds: {}",
-                node_json(context),
-                check_index
+                "invalid patch. before context {} out of bounds: {check_index}",
+                node_json(context)
             )));
         }
         let check_index = check_index as usize;
@@ -367,7 +374,7 @@ fn patch_list(
     let mut working = original.clone();
     if !remove.is_empty() {
         if insertion_index >= working.len() {
-            return Err(PatchError::new(format!("remove values out bounds: {}", raw_index)));
+            return Err(PatchError::new(format!("remove values out bounds: {raw_index}")));
         }
         for expected in remove {
             if !node_equals(&working[insertion_index], expected) {
@@ -382,7 +389,7 @@ fn patch_list(
     }
 
     if insertion_index > working.len() {
-        return Err(PatchError::new(format!("remove values out bounds: {}", raw_index)));
+        return Err(PatchError::new(format!("remove values out bounds: {raw_index}")));
     }
 
     let mut result = Vec::with_capacity(working.len() + add.len());
@@ -397,9 +404,8 @@ fn patch_list(
                 continue;
             }
             return Err(PatchError::new(format!(
-                "invalid patch. after context {} out of bounds: {}",
-                node_json(context),
-                check_index
+                "invalid patch. after context {} out of bounds: {check_index}",
+                node_json(context)
             )));
         }
         if !node_equals(&working[check_index], context) {
@@ -416,25 +422,19 @@ fn patch_list(
 
 fn non_set_diff_error(
     old_values: &[Node],
-    new_values: &[Node],
+    _new_values: &[Node],
     path: &[PathSegment],
 ) -> PatchError {
     if old_values.len() > 1 {
-        PatchError::new(format!(
+        return PatchError::new(format!(
             "invalid diff: multiple removals from non-set at {}",
             path_to_string(path)
-        ))
-    } else if new_values.len() > 1 {
-        PatchError::new(format!(
-            "invalid diff: multiple additions to a non-set at {}",
-            path_to_string(path)
-        ))
-    } else {
-        PatchError::new(format!(
-            "invalid diff: multiple additions to a non-set at {}",
-            path_to_string(path)
-        ))
+        ));
     }
+    PatchError::new(format!(
+        "invalid diff: multiple additions to a non-set at {}",
+        path_to_string(path)
+    ))
 }
 
 fn expect_value_error(expected: &Node, found: &Node, path: &[PathSegment]) -> PatchError {
@@ -451,7 +451,7 @@ fn expected_collection_error(node: &Node, segment: &PathSegment) -> PatchError {
         PathSegment::Key(_) => "JSON object",
         PathSegment::Index(_) => "JSON array",
     };
-    PatchError::new(format!("found {} at {}: expected {}", node_json(node), segment, expected))
+    PatchError::new(format!("found {} at {segment}: expected {expected}", node_json(node)))
 }
 
 fn invalid_path_element_error(segment: &PathSegment) -> PatchError {
@@ -459,7 +459,7 @@ fn invalid_path_element_error(segment: &PathSegment) -> PatchError {
         PathSegment::Key(_) => "string",
         PathSegment::Index(_) => "float64",
     };
-    PatchError::new(format!("invalid path element {}: expected float64", type_name))
+    PatchError::new(format!("invalid path element {type_name}: expected float64"))
 }
 
 fn single_value(values: &[Node]) -> Node {
@@ -480,11 +480,9 @@ fn node_json(node: &Node) -> String {
         Node::Number(number) => {
             let value = number.get();
             if value.fract() == 0.0 {
-                format!("{:.0}", value)
+                format!("{value:.0}")
             } else {
-                serde_json::Number::from_f64(value)
-                    .map(|n| n.to_string())
-                    .unwrap_or_else(String::new)
+                serde_json::Number::from_f64(value).map(|n| n.to_string()).unwrap_or_default()
             }
         }
         _ => match node.to_json_value() {
