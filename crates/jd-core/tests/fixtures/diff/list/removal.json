@@ -18,7 +18,6 @@
           "value": 3
         }
       ],
-      "add": [],
       "after": [
         {
           "type": "Void"

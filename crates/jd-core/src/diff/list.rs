@@ -173,28 +173,30 @@ fn longest_common_subsequence(lhs: &[HashCode], rhs: &[HashCode]) -> Vec<HashCod
     let n = lhs.len();
     let m = rhs.len();
     let mut table = vec![vec![0usize; m + 1]; n + 1];
-    for i in (0..n).rev() {
-        for j in (0..m).rev() {
+    for i in 0..n {
+        for j in 0..m {
             if lhs[i] == rhs[j] {
-                table[i][j] = table[i + 1][j + 1] + 1;
+                table[i + 1][j + 1] = table[i][j] + 1;
             } else {
-                table[i][j] = table[i + 1][j].max(table[i][j + 1]);
+                table[i + 1][j + 1] = table[i][j + 1].max(table[i + 1][j]);
             }
         }
     }
-    let mut result = Vec::with_capacity(table[0][0]);
-    let mut i = 0usize;
-    let mut j = 0usize;
-    while i < n && j < m {
-        if lhs[i] == rhs[j] {
-            result.push(lhs[i]);
-            i += 1;
-            j += 1;
-        } else if table[i + 1][j] >= table[i][j + 1] {
-            i += 1;
+
+    let mut result = Vec::with_capacity(table[n][m]);
+    let mut i = n;
+    let mut j = m;
+    while i > 0 && j > 0 {
+        if lhs[i - 1] == rhs[j - 1] {
+            result.push(lhs[i - 1]);
+            i -= 1;
+            j -= 1;
+        } else if table[i - 1][j] >= table[i][j - 1] {
+            i -= 1;
         } else {
-            j += 1;
+            j -= 1;
         }
     }
+    result.reverse();
     result
 }

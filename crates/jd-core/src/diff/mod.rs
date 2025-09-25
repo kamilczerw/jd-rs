@@ -28,13 +28,19 @@ pub struct DiffMetadata {
     /// Indicates that merge patch semantics should be used.
     #[serde(default)]
     pub merge: bool,
+    /// Optional set-key metadata (unused in list-mode MVP).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub set_keys: Option<Vec<String>>,
+    /// Optional color rendering hint (reserved for future parity work).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<bool>,
 }
 
 impl DiffMetadata {
     /// Constructs metadata for merge mode.
     #[must_use]
     pub fn merge() -> Self {
-        Self { merge: true }
+        Self { merge: true, set_keys: None, color: None }
     }
 }
 
@@ -286,6 +292,18 @@ mod tests {
             .with_before(vec![Node::from_json_str("2").unwrap()])
             .with_add(vec![Node::from_json_str("3").unwrap()])
             .with_after(vec![Node::Void])]);
+        assert_eq!(diff, expected);
+    }
+
+    #[test]
+    fn diff_of_arrays_with_nested_object_diff_preserves_child_path() {
+        let lhs = Node::from_json_str("[{\"name\":\"jd\",\"version\":1}]").unwrap();
+        let rhs = Node::from_json_str("[{\"name\":\"jd\",\"version\":2}]").unwrap();
+        let diff = diff_nodes(&lhs, &rhs, &DiffOptions::default());
+        let expected = Diff::from_elements(vec![DiffElement::new()
+            .with_path(Path::from(vec![PathSegment::index(0), PathSegment::key("version")]))
+            .with_remove(vec![Node::from_json_str("1").unwrap()])
+            .with_add(vec![Node::from_json_str("2").unwrap()])]);
         assert_eq!(diff, expected);
     }
 
