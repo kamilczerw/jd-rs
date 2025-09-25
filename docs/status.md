@@ -63,3 +63,39 @@
 ### Next Steps
 - Draft the Milestone 4 diff engine component spec capturing struct definitions, algorithm stages, and hashing dependencies before writing tests.
 - Identify fixtures from the Go repository to snapshot as golden outputs for list-mode diff parity, then script their regeneration.
+
+## Status — Milestone 5 (Patch Apply & Reverse Recon)
+
+### Summary
+- Inspected the Go patch application pipeline to understand how metadata selects between strict and merge semantics and how patch elements are applied sequentially.
+- Traced list and object patchers to capture context validation, append handling, and merge-specific object creation requirements.
+- Reviewed the upstream diff/patch end-to-end tests to restate invariants we must satisfy when wiring the Rust patch engine and reverse operations.
+
+### Findings & References
+1. **Patch dispatch strategy** – `patchAll` iterates diff elements, switching between strict and merge strategies based on metadata before delegating to node-specific `patch` implementations, while enforcing single-value replacements for non-set modes. [(v2.2.2/patch_common.go#L7-L65)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/patch_common.go#L7-L65)
+2. **List patch semantics** – `jsonList.patch` handles whole-list replacements, recursive descent, append-at-`-1`, before/after context verification, and strict removal validation with detailed error strings. [(v2.2.2/v2/list.go#L313-L415)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/list.go#L313-L415)
+3. **Object patch semantics** – `jsonObject.patch` checks merge metadata, ensures strict replacements verify prior values, auto-creates nested objects for merge strategy, and deletes entries when child patches return void. [(v2.2.2/v2/object.go#L216-L271)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/object.go#L216-L271)
+4. **End-to-end invariants** – `TestDiffAndPatch` exercises diff→patch round-trips (including JSON Patch rendering) establishing parity expectations for success and failure cases we must replicate. [(v2.2.2/v2/e2e_test.go#L7-L159)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/e2e_test.go#L7-L159)
+
+### Next Steps
+- Design Milestone 5 tests covering node-level patching, diff round-trips, and reverse operations before implementing the Rust patch engine.
+- Document any deviations in ADRs if Rust requires structural changes (e.g., iterator ownership vs borrowing) while maintaining parity with Go error messages.
+
+## Status — Milestone 6 (Patch Renderers & Reverse Recon)
+
+### Summary
+- Re-read the Go renderer implementation to catalog native jd formatting, JSON Patch sequencing, and merge serialization prerequisites before porting the logic.
+- Confirmed JSON Pointer rules and context-validation errors surfaced by the Go code so tests can assert byte-for-byte parity.
+- Noted that the plan's `-test` flag mention maps to internal reverse-diff checks because the upstream CLI exposes no such flag; captured this in ADR 0001.
+- Validated reverse diff behavior matches Go by iterating elements in reverse order, swapping additions/removals, and inheriting metadata explicitly so property-based round-trips succeed.
+
+### Findings & References
+1. **Native renderer layout & color diffing** – `DiffElement.Render` emits metadata headers, list context, and colorized single-string diffs using an LCS of runes; our port must replicate the exact control flow and ANSI codes.【0e54f4†L18-L156】
+2. **JSON Patch conversion constraints** – `Diff.RenderPatch` enforces single-line before/after context, validates array indices, injects `test/remove/add` operations in order, and rejects empty hunks; these semantics define our error messages.【0e54f4†L166-L268】
+3. **Merge patch rendering** – `Diff.RenderMerge` requires every element (including inherited metadata) to be marked merge, coerces void additions to null, and patches against a void node to reuse canonical writers.【d20d2f†L270-L289】
+4. **Pointer encoding & patch parsing** – `ReadPatchString` and `writePointer` restrict numeric-looking object keys and assemble pointer strings with RFC 6901 escaping, establishing our pointer helpers and validation paths.【8daf59†L223-L320】【84cad1†L10-L41】
+5. **CLI surface confirmation** – Upstream CLI flags exclude any `-test` option, so parity work must stay within the documented surface (`-p`, `-f`, `-t`, etc.).【074fa5†L23-L199】
+
+### Next Steps
+- Expand renderer coverage with larger fixtures and cross-implementation parity snapshots, especially for set/multiset semantics slated for later milestones.
+- Begin wiring CLI render mode flags (`-n`, `-p`, `-m`, etc.) to the new renderer APIs while preserving merge/set metadata behavior for future work.

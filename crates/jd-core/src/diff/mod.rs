@@ -13,8 +13,9 @@ mod primitives;
 pub use path::{path_from_segments, root_path, Path, PathSegment};
 
 use serde::{Deserialize, Serialize};
+use serde_json::{self, Number as JsonNumber, Value as JsonValue};
 
-use crate::{ArrayMode, DiffOptions, Node};
+use crate::{ArrayMode, DiffOptions, Node, PatchError};
 
 /// Metadata associated with a diff element.
 ///
@@ -41,6 +42,14 @@ impl DiffMetadata {
     #[must_use]
     pub fn merge() -> Self {
         Self { merge: true, set_keys: None, color: None }
+    }
+
+    fn render_header(&self) -> String {
+        if self.merge {
+            "^ {\"Merge\":true}\n".to_string()
+        } else {
+            String::new()
+        }
     }
 }
 
@@ -148,6 +157,73 @@ pub struct Diff {
     elements: Vec<DiffElement>,
 }
 
+/// Configuration toggles for diff rendering.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct RenderConfig {
+    color: bool,
+}
+
+impl RenderConfig {
+    /// Constructs a configuration with default settings (no ANSI color).
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Enables or disables ANSI color output.
+    #[must_use]
+    pub fn with_color(mut self, enabled: bool) -> Self {
+        self.color = enabled;
+        self
+    }
+
+    /// Indicates whether color output is enabled.
+    #[must_use]
+    pub fn color_enabled(self) -> bool {
+        self.color
+    }
+}
+
+impl RenderConfig {
+    /// Convenience constructor enabling color output.
+    #[must_use]
+    pub fn color(enabled: bool) -> Self {
+        Self::new().with_color(enabled)
+    }
+}
+
+/// Errors that can occur while rendering or reversing diffs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RenderError {
+    message: String,
+}
+
+impl RenderError {
+    fn new(message: impl Into<String>) -> Self {
+        Self { message: message.into() }
+    }
+}
+
+impl std::fmt::Display for RenderError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.message)
+    }
+}
+
+impl std::error::Error for RenderError {}
+
+impl From<serde_json::Error> for RenderError {
+    fn from(err: serde_json::Error) -> Self {
+        Self::new(err.to_string())
+    }
+}
+
+impl From<PatchError> for RenderError {
+    fn from(err: PatchError) -> Self {
+        Self::new(err.to_string())
+    }
+}
+
 impl Diff {
     /// Constructs an empty diff.
     #[must_use]
@@ -183,6 +259,232 @@ impl Diff {
     pub fn into_elements(self) -> Vec<DiffElement> {
         self.elements
     }
+
+    /// Renders the diff using the native jd text format.
+    ///
+    /// ```
+    /// # use jd_core::{DiffOptions, Node, RenderConfig};
+    /// let lhs = Node::from_json_str("{\"a\":1}")?;
+    /// let rhs = Node::from_json_str("{\"a\":2}")?;
+    /// let diff = lhs.diff(&rhs, &DiffOptions::default());
+    /// let rendered = diff.render(&RenderConfig::default());
+    /// assert_eq!(rendered, "@ [\"a\"]\n- 1\n+ 2\n");
+    /// # Ok::<(), jd_core::CanonicalizeError>(())
+    /// ```
+    #[must_use]
+    pub fn render(&self, config: &RenderConfig) -> String {
+        let mut output = String::new();
+        let mut inherited = DiffMetadata::default();
+        for element in &self.elements {
+            if let Some(metadata) = element.metadata.as_ref() {
+                output.push_str(&metadata.render_header());
+                inherited = metadata.clone();
+            }
+            let is_merge = element.metadata.as_ref().map_or(inherited.merge, |meta| meta.merge);
+            output.push_str(&render_element_native(element, config, is_merge));
+        }
+        output
+    }
+
+    /// Renders the diff as a JSON Patch (RFC 6902).
+    ///
+    /// ```
+    /// # use jd_core::{DiffOptions, Node};
+    /// let lhs = Node::from_json_str("[1,2,3]")?;
+    /// let rhs = Node::from_json_str("[1,4,3]")?;
+    /// let diff = lhs.diff(&rhs, &DiffOptions::default());
+    /// let patch = diff.render_patch()?;
+    /// assert!(patch.starts_with("[{\"op\":\"test\""));
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn render_patch(&self) -> Result<String, RenderError> {
+        if self.is_empty() {
+            return Ok("[]".to_string());
+        }
+
+        let mut operations = Vec::new();
+
+        for element in &self.elements {
+            if element.remove.is_empty() && element.add.is_empty() {
+                return Err(RenderError::new("cannot render empty diff element as JSON Patch op"));
+            }
+
+            let pointer = path_to_pointer(&element.path)?;
+
+            if element.before.len() > 1 {
+                return Err(RenderError::new(format!(
+                    "only one line of before context supported. got {}",
+                    element.before.len()
+                )));
+            }
+            if let Some(before) = element.before.first() {
+                if !is_void(before) {
+                    let last = element
+                        .path
+                        .segments()
+                        .last()
+                        .ok_or_else(|| RenderError::new("expected path. got empty path"))?;
+                    let PathSegment::Index(index) = last else {
+                        return Err(RenderError::new("wanted path index. got object key"));
+                    };
+                    let mut prev_path = element.path.clone();
+                    prev_path.pop();
+                    prev_path.push(PathSegment::Index(index - 1));
+                    operations.push(PatchElement::test(
+                        path_to_pointer(&prev_path)?,
+                        node_to_json_value(before)?,
+                    ));
+                }
+            }
+
+            if element.after.len() > 1 {
+                return Err(RenderError::new(format!(
+                    "only one line of after context supported. got {}",
+                    element.after.len()
+                )));
+            }
+            if let Some(after) = element.after.first() {
+                if !is_void(after) {
+                    let last = element
+                        .path
+                        .segments()
+                        .last()
+                        .ok_or_else(|| RenderError::new("expected path. got empty path"))?;
+                    let PathSegment::Index(index) = last else {
+                        return Err(RenderError::new("wanted path index. got object key"));
+                    };
+                    let next_index = index + i64::try_from(element.remove.len()).unwrap_or(0);
+                    let mut next_path = element.path.clone();
+                    next_path.pop();
+                    next_path.push(PathSegment::Index(next_index));
+                    operations.push(PatchElement::test(
+                        path_to_pointer(&next_path)?,
+                        node_to_json_value(after)?,
+                    ));
+                }
+            }
+
+            if element.remove.first().map_or(false, |node| is_void(node)) {
+                // Merge deletions encode void in remove; skip JSON Patch removal.
+            } else {
+                for value in &element.remove {
+                    operations
+                        .push(PatchElement::test(pointer.clone(), node_to_json_value(value)?));
+                    operations
+                        .push(PatchElement::remove(pointer.clone(), node_to_json_value(value)?));
+                }
+            }
+
+            for value in element.add.iter().rev() {
+                if is_void(value) {
+                    continue;
+                }
+                operations.push(PatchElement::add(pointer.clone(), node_to_json_value(value)?));
+            }
+        }
+
+        Ok(serde_json::to_string(&operations)?)
+    }
+
+    /// Renders the diff as a JSON Merge Patch (RFC 7386).
+    ///
+    /// ```
+    /// # use jd_core::{diff::DiffElement, diff::PathSegment, Diff, DiffMetadata, Node};
+    /// let element = DiffElement::new()
+    ///     .with_metadata(DiffMetadata::merge())
+    ///     .with_path(PathSegment::key("name"))
+    ///     .with_add(vec![Node::from_json_str("\"jd\"").unwrap()]);
+    /// let diff = Diff::from_elements(vec![element]);
+    /// assert_eq!(diff.render_merge().unwrap(), "{\"name\":\"jd\"}");
+    /// ```
+    pub fn render_merge(&self) -> Result<String, RenderError> {
+        if self.is_empty() {
+            return Ok("{}".to_string());
+        }
+
+        let mut inherited = DiffMetadata::default();
+        let mut normalized = Vec::with_capacity(self.elements.len());
+
+        for element in &self.elements {
+            if let Some(metadata) = element.metadata.as_ref() {
+                inherited = metadata.clone();
+            }
+            let is_merge = element.metadata.as_ref().map_or(inherited.merge, |meta| meta.merge);
+            if !is_merge {
+                return Err(RenderError::new("cannot render non-merge element as merge"));
+            }
+            let mut clone = element.clone();
+            for value in &mut clone.add {
+                if is_void(value) {
+                    *value = Node::Null;
+                }
+            }
+            normalized.push(clone);
+        }
+
+        let diff = Diff::from_elements(normalized);
+        let patched = Node::Void.apply_patch(&diff)?;
+        let value = patched
+            .to_json_value()
+            .ok_or_else(|| RenderError::new("merge patch produced void value"))?;
+        Ok(serde_json::to_string(&value)?)
+    }
+
+    /// Serializes the diff structure as JSON for debugging.
+    pub fn render_raw(&self) -> Result<String, RenderError> {
+        Ok(serde_json::to_string(&self.elements)?)
+    }
+
+    /// Reverses a strict diff so that applying it to the target restores the base value.
+    ///
+    /// ```
+    /// # use jd_core::{DiffOptions, Node};
+    /// let lhs = Node::from_json_str("{\"a\":1}")?;
+    /// let rhs = Node::from_json_str("{\"a\":2}")?;
+    /// let diff = lhs.diff(&rhs, &DiffOptions::default());
+    /// let reversed = diff.reverse()?;
+    /// let restored = rhs.apply_patch(&reversed)?;
+    /// assert_eq!(restored, lhs);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn reverse(&self) -> Result<Diff, RenderError> {
+        if self.elements.is_empty() {
+            return Ok(Diff::default());
+        }
+
+        let mut active_metadata: Vec<Option<DiffMetadata>> =
+            Vec::with_capacity(self.elements.len());
+        let mut inherited: Option<DiffMetadata> = None;
+        for element in &self.elements {
+            if let Some(metadata) = element.metadata.clone() {
+                inherited = Some(metadata);
+            }
+            active_metadata.push(inherited.clone());
+        }
+
+        let mut reversed = Vec::with_capacity(self.elements.len());
+
+        for (index, element) in self.elements.iter().enumerate().rev() {
+            let metadata = active_metadata[index].clone();
+            if metadata.as_ref().map_or(false, |meta| meta.merge) {
+                return Err(RenderError::new(format!(
+                    "cannot reverse merge diff element at {}",
+                    element.path
+                )));
+            }
+
+            let mut clone = element.clone();
+            std::mem::swap(&mut clone.remove, &mut clone.add);
+            if metadata.is_some() {
+                clone.metadata = metadata;
+            } else {
+                clone.metadata = None;
+            }
+            reversed.push(clone);
+        }
+
+        Ok(Diff::from_elements(reversed))
+    }
 }
 
 impl IntoIterator for Diff {
@@ -207,6 +509,271 @@ impl From<Vec<DiffElement>> for Diff {
     fn from(value: Vec<DiffElement>) -> Self {
         Self::from_elements(value)
     }
+}
+
+const COLOR_RESET: &str = "\u{1b}[0m";
+const COLOR_RED: &str = "\u{1b}[31m";
+const COLOR_GREEN: &str = "\u{1b}[32m";
+
+#[derive(Serialize)]
+struct PatchElement {
+    op: &'static str,
+    path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    value: Option<JsonValue>,
+}
+
+impl PatchElement {
+    fn test(path: String, value: JsonValue) -> Self {
+        Self { op: "test", path, value: Some(value) }
+    }
+
+    fn remove(path: String, value: JsonValue) -> Self {
+        Self { op: "remove", path, value: Some(value) }
+    }
+
+    fn add(path: String, value: JsonValue) -> Self {
+        Self { op: "add", path, value: Some(value) }
+    }
+}
+
+fn is_void(node: &Node) -> bool {
+    matches!(node, Node::Void)
+}
+
+fn render_element_native(element: &DiffElement, config: &RenderConfig, is_merge: bool) -> String {
+    let mut output = String::new();
+    output.push_str("@ ");
+    output.push_str(&path_to_json(&element.path));
+    output.push('\n');
+
+    struct SingleStringDiff<'a> {
+        common: Vec<char>,
+        old: &'a str,
+        new: &'a str,
+    }
+
+    let string_diff = if element.remove.len() == 1 && element.add.len() == 1 {
+        match (&element.remove[0], &element.add[0]) {
+            (Node::String(old), Node::String(new)) => {
+                Some(SingleStringDiff { common: lcs_chars(old, new), old, new })
+            }
+            _ => None,
+        }
+    } else {
+        None
+    };
+
+    for before in &element.before {
+        if is_void(before) {
+            output.push_str("[\n");
+        } else {
+            output.push_str("  ");
+            output.push_str(&node_to_json(before));
+            output.push('\n');
+        }
+    }
+
+    for value in &element.remove {
+        if is_void(value) {
+            continue;
+        }
+        if let Some(diff) = &string_diff {
+            if config.color_enabled() {
+                output.push_str("- \"");
+                output.push_str(&color_string_diff(diff.old, &diff.common, COLOR_RED));
+                output.push_str("\"\n");
+                continue;
+            }
+        }
+        if config.color_enabled() {
+            output.push_str(COLOR_RED);
+        }
+        output.push_str("- ");
+        output.push_str(&node_to_json(value));
+        output.push('\n');
+        if config.color_enabled() {
+            output.push_str(COLOR_RESET);
+        }
+    }
+
+    for value in &element.add {
+        if is_void(value) {
+            if is_merge {
+                if config.color_enabled() {
+                    output.push_str(COLOR_GREEN);
+                }
+                output.push_str("+\n");
+                if config.color_enabled() {
+                    output.push_str(COLOR_RESET);
+                }
+            }
+            continue;
+        }
+        if let Some(diff) = &string_diff {
+            if config.color_enabled() {
+                output.push_str("+ \"");
+                output.push_str(&color_string_diff(diff.new, &diff.common, COLOR_GREEN));
+                output.push_str("\"\n");
+                continue;
+            }
+        }
+        if config.color_enabled() {
+            output.push_str(COLOR_GREEN);
+        }
+        output.push_str("+ ");
+        output.push_str(&node_to_json(value));
+        output.push('\n');
+        if config.color_enabled() {
+            output.push_str(COLOR_RESET);
+        }
+    }
+
+    for after in &element.after {
+        if is_void(after) {
+            output.push_str("]\n");
+        } else {
+            output.push_str("  ");
+            output.push_str(&node_to_json(after));
+            output.push('\n');
+        }
+    }
+
+    output
+}
+
+fn node_to_json(node: &Node) -> String {
+    match node {
+        Node::Void => String::new(),
+        Node::Number(number) => json_number_from_f64(number.get()).to_string(),
+        _ => {
+            let value = node_to_json_value(node).expect("serializing node");
+            serde_json::to_string(&value).expect("serializing node")
+        }
+    }
+}
+
+fn node_to_json_value(node: &Node) -> Result<JsonValue, RenderError> {
+    match node {
+        Node::Void => Err(RenderError::new("cannot encode void value in JSON Patch")),
+        Node::Number(number) => Ok(JsonValue::Number(json_number_from_f64(number.get()))),
+        _ => node
+            .to_json_value()
+            .ok_or_else(|| RenderError::new("cannot encode void value in JSON Patch")),
+    }
+}
+
+fn path_to_json(path: &Path) -> String {
+    let mut values = Vec::with_capacity(path.len());
+    for segment in path.segments() {
+        match segment {
+            PathSegment::Key(key) => values.push(JsonValue::String(key.clone())),
+            PathSegment::Index(index) => {
+                let number =
+                    JsonNumber::from_f64(*index as f64).expect("diff indices are finite values");
+                values.push(JsonValue::Number(number));
+            }
+        }
+    }
+    serde_json::to_string(&JsonValue::Array(values)).expect("serialize path")
+}
+
+fn path_to_pointer(path: &Path) -> Result<String, RenderError> {
+    let mut pointer = String::new();
+    for segment in path.segments() {
+        pointer.push('/');
+        match segment {
+            PathSegment::Index(index) => {
+                if *index == -1 {
+                    pointer.push('-');
+                } else {
+                    pointer.push_str(&index.to_string());
+                }
+            }
+            PathSegment::Key(key) => {
+                if key.parse::<i64>().is_ok() {
+                    return Err(RenderError::new(format!(
+                        "JSON Pointer does not support object keys that look like numbers: {}",
+                        key
+                    )));
+                }
+                if key == "-" {
+                    return Err(RenderError::new("JSON Pointer does not support object key '-'"));
+                }
+                pointer.push_str(&escape_pointer_segment(key));
+            }
+        }
+    }
+    Ok(pointer)
+}
+
+fn escape_pointer_segment(segment: &str) -> String {
+    segment.replace('~', "~0").replace('/', "~1")
+}
+
+fn json_number_from_f64(value: f64) -> JsonNumber {
+    if value.fract() == 0.0 {
+        if (i64::MIN as f64) <= value && value <= (i64::MAX as f64) {
+            return JsonNumber::from(value as i64);
+        }
+        if value >= 0.0 && value <= (u64::MAX as f64) {
+            return JsonNumber::from(value as u64);
+        }
+    }
+    JsonNumber::from_f64(value).expect("finite number")
+}
+
+fn color_string_diff(text: &str, common: &[char], color: &str) -> String {
+    let mut result = String::new();
+    let mut common_iter = common.iter();
+    let mut current = common_iter.next();
+    for ch in text.chars() {
+        if let Some(expected) = current {
+            if ch == *expected {
+                result.push(ch);
+                current = common_iter.next();
+                continue;
+            }
+        }
+        result.push_str(color);
+        result.push(ch);
+        result.push_str(COLOR_RESET);
+    }
+    result
+}
+
+fn lcs_chars(lhs: &str, rhs: &str) -> Vec<char> {
+    let left: Vec<char> = lhs.chars().collect();
+    let right: Vec<char> = rhs.chars().collect();
+    let n = left.len();
+    let m = right.len();
+    let mut table = vec![vec![0usize; m + 1]; n + 1];
+    for i in 0..n {
+        for j in 0..m {
+            if left[i] == right[j] {
+                table[i + 1][j + 1] = table[i][j] + 1;
+            } else {
+                table[i + 1][j + 1] = table[i][j + 1].max(table[i + 1][j]);
+            }
+        }
+    }
+
+    let mut result = Vec::with_capacity(table[n][m]);
+    let mut i = n;
+    let mut j = m;
+    while i > 0 && j > 0 {
+        if left[i - 1] == right[j - 1] {
+            result.push(left[i - 1]);
+            i -= 1;
+            j -= 1;
+        } else if table[i - 1][j] >= table[i][j - 1] {
+            i -= 1;
+        } else {
+            j -= 1;
+        }
+    }
+    result.reverse();
+    result
 }
 
 /// Computes the structural diff between two nodes.
