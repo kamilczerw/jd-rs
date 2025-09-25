@@ -1,0 +1,21 @@
+[package]
+name = "jd-cli"
+version = "0.0.0"
+edition = "2021"
+authors = ["Kamil Czerwiński <kamil@czerwinski.dev>"]
+description = "Command-line interface for the Rust port of jd"
+license = "MIT"
+publish = false
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+jd-core = { path = "../jd-core" }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+predicates = { workspace = true }
+
+[[bin]]
+name = "jd"
+path = "src/main.rs"

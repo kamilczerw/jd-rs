@@ -1,0 +1,14 @@
+[package]
+name = "jd-benches"
+version = "0.0.0"
+edition = "2021"
+authors = ["Kamil Czerwiński <kamil@czerwinski.dev>"]
+description = "Benchmark harnesses for the Rust port of jd"
+license = "MIT"
+publish = false
+
+[dependencies]
+jd-core = { path = "../jd-core" }
+
+[dev-dependencies]
+criterion = "0.5"

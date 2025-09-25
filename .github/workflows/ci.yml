@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.88.0
+          components: clippy, rustfmt
+      - name: Cargo fmt
+        run: cargo fmt --all -- --check
+      - name: Cargo clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Cargo test
+        run: cargo test --workspace --all-targets
+      - name: Cargo test docs
+        run: cargo test --workspace --doc
+      - name: Cargo deny
+        uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          command: check
