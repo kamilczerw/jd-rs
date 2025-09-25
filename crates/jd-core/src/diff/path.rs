@@ -1,3 +1,5 @@
+use std::fmt;
+
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Represents a single element within a diff path.
@@ -37,6 +39,15 @@ impl PathSegment {
         I: Into<i64>,
     {
         Self::Index(value.into())
+    }
+}
+
+impl fmt::Display for PathSegment {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Key(key) => f.write_str(key),
+            Self::Index(index) => write!(f, "{}", index),
+        }
     }
 }
 
@@ -178,6 +189,19 @@ impl From<Vec<PathSegment>> for Path {
 impl From<PathSegment> for Path {
     fn from(value: PathSegment) -> Self {
         Self(vec![value])
+    }
+}
+
+impl fmt::Display for Path {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("[")?;
+        for (idx, segment) in self.0.iter().enumerate() {
+            if idx > 0 {
+                f.write_str(" ")?;
+            }
+            write!(f, "{}", segment)?;
+        }
+        f.write_str("]")
     }
 }
 

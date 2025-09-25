@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc c765ec47426ba485012b0140dc923c3a330e1cb3a50d3f62c8f44028c806ae8b # shrinks to a_json = Array [Bool(false), Null], b_json = Array [Null, Null]

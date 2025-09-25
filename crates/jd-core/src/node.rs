@@ -6,7 +6,7 @@ use serde_yaml::Value as YamlValue;
 
 use crate::{
     hash::{combine, hash_bytes, HashCode},
-    ArrayMode, CanonicalizeError, DiffOptions, Number,
+    ArrayMode, CanonicalizeError, DiffOptions, Number, PatchError,
 };
 
 const VOID_HASH: HashCode = [0xF3, 0x97, 0x6B, 0x21, 0x91, 0x26, 0x8D, 0x96];
@@ -227,6 +227,21 @@ impl Node {
     #[must_use]
     pub fn diff(&self, other: &Self, options: &DiffOptions) -> crate::Diff {
         crate::diff::diff_nodes(self, other, options)
+    }
+
+    /// Applies a diff to this node, returning the patched node on success.
+    ///
+    /// ```
+    /// # use jd_core::{DiffOptions, Node};
+    /// let base = Node::from_json_str("[1,2,3]")?;
+    /// let target = Node::from_json_str("[1,4,3]")?;
+    /// let diff = base.diff(&target, &DiffOptions::default());
+    /// let patched = base.apply_patch(&diff)?;
+    /// assert_eq!(patched, target);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
+    pub fn apply_patch(&self, diff: &crate::Diff) -> Result<Self, PatchError> {
+        crate::patch::apply_patch(self, diff)
     }
 
     /// Computes the Go-compatible hash code for this node.

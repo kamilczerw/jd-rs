@@ -26,12 +26,14 @@ mod hash;
 mod node;
 mod number;
 mod options;
+mod patch;
 
-pub use diff::{Diff, DiffElement, DiffMetadata, Path, PathSegment};
+pub use diff::{Diff, DiffElement, DiffMetadata, Path, PathSegment, RenderConfig, RenderError};
 pub use error::{CanonicalizeError, OptionsError};
 pub use node::Node;
 pub use number::Number;
 pub use options::{ArrayMode, DiffOptions};
+pub use patch::PatchError;
 
 /// Returns the semantic version of the `jd-core` crate.
 ///
