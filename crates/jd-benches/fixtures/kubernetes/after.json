@@ -1,0 +1,126 @@
+{
+  "apiVersion": "apps/v1",
+  "kind": "Deployment",
+  "metadata": {
+    "name": "jd-api",
+    "namespace": "production",
+    "labels": {
+      "app": "jd",
+      "tier": "backend",
+      "track": "canary"
+    },
+    "annotations": {
+      "deployment.kubernetes.io/revision": "18",
+      "prometheus.io/port": "9090"
+    }
+  },
+  "spec": {
+    "replicas": 7,
+    "strategy": {
+      "type": "RollingUpdate",
+      "rollingUpdate": {
+        "maxUnavailable": 0,
+        "maxSurge": 3
+      }
+    },
+    "selector": {
+      "matchLabels": {
+        "app": "jd"
+      }
+    },
+    "template": {
+      "metadata": {
+        "labels": {
+          "app": "jd",
+          "tier": "backend",
+          "track": "canary"
+        },
+        "annotations": {
+          "checksum/config": "91f09a21",
+          "prometheus.io/path": "/metrics"
+        }
+      },
+      "spec": {
+        "containers": [
+          {
+            "name": "api",
+            "image": "ghcr.io/jd/api:2.3.0",
+            "imagePullPolicy": "IfNotPresent",
+            "ports": [
+              {
+                "containerPort": 8080,
+                "name": "http"
+              },
+              {
+                "containerPort": 9090,
+                "name": "metrics"
+              }
+            ],
+            "env": [
+              {
+                "name": "JD_ENV",
+                "value": "prod"
+              },
+              {
+                "name": "JD_FEATURE_FLAG",
+                "value": "canary"
+              },
+              {
+                "name": "JD_RATE_LIMIT",
+                "value": "750"
+              }
+            ],
+            "resources": {
+              "requests": {
+                "cpu": "600m",
+                "memory": "320Mi"
+              },
+              "limits": {
+                "cpu": "900m",
+                "memory": "512Mi"
+              }
+            },
+            "livenessProbe": {
+              "httpGet": {
+                "path": "/healthz",
+                "port": "http"
+              },
+              "initialDelaySeconds": 10,
+              "periodSeconds": 10
+            },
+            "readinessProbe": {
+              "httpGet": {
+                "path": "/ready",
+                "port": "http"
+              },
+              "initialDelaySeconds": 4,
+              "periodSeconds": 5
+            }
+          },
+          {
+            "name": "migrations",
+            "image": "ghcr.io/jd/migrate:1.4.0",
+            "command": [
+              "jd-migrate",
+              "--auto"
+            ]
+          }
+        ],
+        "volumes": [
+          {
+            "name": "config",
+            "configMap": {
+              "name": "jd-config"
+            }
+          },
+          {
+            "name": "certs",
+            "secret": {
+              "secretName": "jd-tls"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -12,3 +12,7 @@ jd-core = { path = "../jd-core" }
 
 [dev-dependencies]
 criterion = "0.5"
+
+[[bench]]
+name = "smoke"
+harness = false

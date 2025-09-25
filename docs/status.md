@@ -125,3 +125,20 @@
 - Mirror these flag definitions and mutually exclusive combinations in the Clap-based parser.
 - Add argument arity validation tests and snapshots that assert exit codes and help/usage text match upstream.
 - Reflect the absence of auto color toggles when reconciling the implementation plan for Milestone 7.
+
+## Status — Milestone 7 (Performance Pass Recon)
+
+### Summary
+- Reviewed the upstream hashing and diff hot paths so our benchmark suites focus on the same operations that dominate runtime.
+- Confirmed Go jd relies on precomputed hash arrays for list diffs and deterministic object ordering, guiding the structure of our Criterion scenarios.
+- Noted the absence of built-in Go benchmarks, reinforcing the need for our parity harness to execute real binaries against shared fixtures.
+
+### Findings & References
+1. **Node hashing primitives** – Every node implements `hashCode` with an FNV64 backend used throughout diffing, so our performance harness must exercise hashing-heavy workloads. [(v2.2.2/v2/hash_common.go#L10-L42)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/hash_common.go#L10-L42)
+2. **List diff precomputation** – `jsonList.diff` allocates cached hash arrays for both sides before invoking the LCS, signaling that our benches should cover large arrays to stress this flow. [(v2.2.2/v2/list.go#L64-L121)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/list.go#L64-L121)
+3. **Object iteration order** – Objects sort key/value pairs prior to diffing and rendering, which affects both performance characteristics and deterministic output we must mirror in our measurements. [(v2.2.2/v2/object.go#L117-L209)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/object.go#L117-L209)
+
+### Next Steps
+- Implement Milestone 7 benchmark harnesses and scripts that compare Rust jd against the Go binary using shared fixtures.
+- Capture baseline numbers in `docs/benchmarks.md`, referencing the workloads above.
+- Raise ADRs if we consider optimizations (e.g., alternative hash strategies) that diverge from Go's design.

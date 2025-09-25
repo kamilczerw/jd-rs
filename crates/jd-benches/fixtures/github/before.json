@@ -1,0 +1,47 @@
+{
+  "action": "opened",
+  "repository": {
+    "id": 123456,
+    "name": "jd",
+    "full_name": "jd-rs/jd",
+    "private": false,
+    "owner": {
+      "login": "jd-rs",
+      "type": "Organization"
+    }
+  },
+  "issue": {
+    "id": 98765,
+    "number": 142,
+    "title": "Diff output mismatch",
+    "state": "open",
+    "labels": [
+      {
+        "name": "bug",
+        "color": "d73a4a"
+      },
+      {
+        "name": "parity",
+        "color": "0366d6"
+      }
+    ],
+    "assignees": [],
+    "comments": 2,
+    "created_at": "2024-07-03T10:12:00Z",
+    "body": "`jd` reports unexpected removals when comparing YAML manifests."
+  },
+  "sender": {
+    "login": "contributor-a",
+    "id": 223344,
+    "site_admin": false
+  },
+  "comment": {
+    "id": 443322,
+    "user": {
+      "login": "maintainer",
+      "type": "User"
+    },
+    "body": "Thanks for the report! Could you attach the inputs?",
+    "created_at": "2024-07-03T10:15:31Z"
+  }
+}
