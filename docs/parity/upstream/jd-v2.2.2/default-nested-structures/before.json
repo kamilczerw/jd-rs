@@ -1,0 +1,26 @@
+{
+  "project": {
+    "name": "alpha",
+    "status": "draft",
+    "members": [
+      {
+        "id": 1,
+        "name": "Ann",
+        "skills": ["go", "rust"]
+      },
+      {
+        "id": 2,
+        "name": "Ben",
+        "skills": ["js"]
+      }
+    ],
+    "metadata": {
+      "labels": ["internal", "2023"],
+      "budget": 100000,
+      "milestones": [
+        {"name": "design", "complete": true},
+        {"name": "beta", "complete": false}
+      ]
+    }
+  }
+}

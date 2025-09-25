@@ -1,0 +1,2 @@
+# Run from this directory
+/tmp/jd -precision 0.05 before.json after.json

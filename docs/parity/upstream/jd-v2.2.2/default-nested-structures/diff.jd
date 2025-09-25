@@ -1,0 +1,31 @@
+@ ["project","members",0,"skills",2]
+  "rust"
++ "sql"
+]
+@ ["project","members",1,"id"]
+- 2
++ 3
+@ ["project","members",1,"name"]
+- "Ben"
++ "Cara"
+@ ["project","members",1,"skills",0]
+[
+- "js"
++ "python"
+]
+@ ["project","metadata","budget"]
+- 100000
++ 95000
+@ ["project","metadata","labels",0]
+[
+- "internal"
+- "2023"
++ "external"
++ "2024"
+]
+@ ["project","metadata","milestones",1,"name"]
+- "beta"
++ "launch"
+@ ["project","status"]
+- "draft"
++ "active"

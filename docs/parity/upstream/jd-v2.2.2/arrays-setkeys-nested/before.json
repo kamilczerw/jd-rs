@@ -1,0 +1,17 @@
+{
+  "clusters": [
+    {
+      "id": "a",
+      "services": [
+        {"id": "api", "port": 80},
+        {"id": "db", "port": 5432}
+      ]
+    },
+    {
+      "id": "b",
+      "services": [
+        {"id": "cache", "port": 6379}
+      ]
+    }
+  ]
+}

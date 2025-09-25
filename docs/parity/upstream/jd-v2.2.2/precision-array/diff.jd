@@ -1,0 +1,13 @@
+@ ["metrics","error_rate"]
+- 0.1
++ 0.12
+@ ["metrics","latency",1]
+  10
+- 10.1
+- 10.2
++ 10.11
++ 10.35
+]
+@ ["metrics","throughput"]
+- 1200
++ 1195.1

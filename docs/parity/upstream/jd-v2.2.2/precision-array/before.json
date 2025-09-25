@@ -1,0 +1,7 @@
+{
+  "metrics": {
+    "latency": [10.0, 10.1, 10.2],
+    "error_rate": 0.1,
+    "throughput": 1200
+  }
+}
