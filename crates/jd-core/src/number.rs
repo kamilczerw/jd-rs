@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Number as JsonNumber;
 
 use crate::{hash::hash_bytes, CanonicalizeError};
 
@@ -40,6 +41,19 @@ impl Number {
     #[must_use]
     pub fn hash_code(self) -> crate::hash::HashCode {
         hash_bytes(&self.0.to_le_bytes())
+    }
+
+    /// Converts the number into a `serde_json::Number` using minimal integer representation when possible.
+    pub fn to_json_number(self) -> JsonNumber {
+        if self.0.fract() == 0.0 && !(self.0 == 0.0 && self.0.is_sign_negative()) {
+            if (i64::MIN as f64) <= self.0 && self.0 <= (i64::MAX as f64) {
+                return JsonNumber::from(self.0 as i64);
+            }
+            if self.0 >= 0.0 && self.0 <= (u64::MAX as f64) {
+                return JsonNumber::from(self.0 as u64);
+            }
+        }
+        JsonNumber::from_f64(self.0).expect("finite number")
     }
 }
 

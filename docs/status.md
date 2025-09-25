@@ -93,6 +93,7 @@
 - Confirmed JSON Pointer rules and context-validation errors surfaced by the Go code so tests can assert byte-for-byte parity.
 - Noted that the plan's `-test` flag mention maps to internal reverse-diff checks because the upstream CLI exposes no such flag; captured this in ADR 0001.
 - Validated reverse diff behavior matches Go by iterating elements in reverse order, swapping additions/removals, and inheriting metadata explicitly so property-based round-trips succeed.
+- Re-checked merge rendering in Go and confirmed `RenderMerge` funnels through `json.Marshal`, which collapses integral floats to integer tokens, so Rust canonicalization must emit `5` instead of `5.0` for merge fixtures.
 
 ### Findings & References
 1. **Native renderer layout & color diffing** – `DiffElement.Render` emits metadata headers, list context, and colorized single-string diffs using an LCS of runes; our port must replicate the exact control flow and ANSI codes.【0e54f4†L18-L156】
@@ -100,6 +101,8 @@
 3. **Merge patch rendering** – `Diff.RenderMerge` requires every element (including inherited metadata) to be marked merge, coerces void additions to null, and patches against a void node to reuse canonical writers.【d20d2f†L270-L289】
 4. **Pointer encoding & patch parsing** – `ReadPatchString` and `writePointer` restrict numeric-looking object keys and assemble pointer strings with RFC 6901 escaping, establishing our pointer helpers and validation paths.【8daf59†L223-L320】【84cad1†L10-L41】
 5. **CLI surface confirmation** – Upstream CLI flags exclude any `-test` option, so parity work must stay within the documented surface (`-p`, `-f`, `-t`, etc.).【074fa5†L23-L199】
+6. **Diff exit code semantics** – Confirmed the Go CLI determines non-empty diffs by checking native output for empty string, JSON Patch for "[]", and merge patch for "{}" before returning exit status 1. This logic informs the Rust CLI parity implementation.【d0b38f†L1-L61】
+7. **Merge JSON canonicalization** – `Diff.RenderMerge` patches a void node and then calls `mergePatch.Json()`, which serializes via `encoding/json` and inherently strips redundant decimal suffixes from integers; Rust must mirror this behavior in its `Node::to_json_value` helper.【d003bd†L260-L280】
 
 ### Next Steps
 - Expand renderer coverage with larger fixtures and cross-implementation parity snapshots, especially for set/multiset semantics slated for later milestones.
