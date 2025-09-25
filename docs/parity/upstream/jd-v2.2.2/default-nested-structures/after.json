@@ -1,0 +1,26 @@
+{
+  "project": {
+    "name": "alpha",
+    "status": "active",
+    "members": [
+      {
+        "id": 1,
+        "name": "Ann",
+        "skills": ["go", "rust", "sql"]
+      },
+      {
+        "id": 3,
+        "name": "Cara",
+        "skills": ["python"]
+      }
+    ],
+    "metadata": {
+      "labels": ["external", "2024"],
+      "budget": 95000,
+      "milestones": [
+        {"name": "design", "complete": true},
+        {"name": "launch", "complete": false}
+      ]
+    }
+  }
+}

@@ -1,0 +1,8 @@
+@ ["clusters",{"id":"a"},"services",{"id":"api"},"port"]
+- 80
++ 8080
+@ ["clusters",{"id":"a"},"services",{}]
++ {"id":"metrics","port":9090}
+@ ["clusters",{}]
+- {"id":"b","services":[{"id":"cache","port":6379}]}
++ {"id":"c","services":[{"id":"cache","port":6379}]}
