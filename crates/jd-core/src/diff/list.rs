@@ -173,9 +173,9 @@ fn longest_common_subsequence(lhs: &[HashCode], rhs: &[HashCode]) -> Vec<HashCod
     let n = lhs.len();
     let m = rhs.len();
     let mut table = vec![vec![0usize; m + 1]; n + 1];
-    for i in 0..n {
-        for j in 0..m {
-            if lhs[i] == rhs[j] {
+    for (i, lhs_hash) in lhs.iter().enumerate() {
+        for (j, rhs_hash) in rhs.iter().enumerate() {
+            if lhs_hash == rhs_hash {
                 table[i + 1][j + 1] = table[i][j] + 1;
             } else {
                 table[i + 1][j + 1] = table[i][j + 1].max(table[i + 1][j]);

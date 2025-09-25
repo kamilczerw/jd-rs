@@ -495,7 +495,7 @@ impl Diff {
                 }
             }
 
-            if element.remove.first().map_or(false, |node| is_void(node)) {
+            if element.remove.first().is_some_and(is_void) {
                 // Merge deletions encode void in remove; skip JSON Patch removal.
             } else {
                 for value in &element.remove {
@@ -608,7 +608,7 @@ impl Diff {
 
         for (index, element) in self.elements.iter().enumerate().rev() {
             let metadata = active_metadata[index].clone();
-            if metadata.as_ref().map_or(false, |meta| meta.merge) {
+            if metadata.as_ref().is_some_and(|meta| meta.merge) {
                 return Err(RenderError::new(format!(
                     "cannot reverse merge diff element at {}",
                     element.path
@@ -843,8 +843,7 @@ fn path_to_pointer(path: &Path) -> Result<String, RenderError> {
             PathSegment::Key(key) => {
                 if key.parse::<i64>().is_ok() {
                     return Err(RenderError::new(format!(
-                        "JSON Pointer does not support object keys that look like numbers: {}",
-                        key
+                        "JSON Pointer does not support object keys that look like numbers: {key}"
                     )));
                 }
                 if key == "-" {
@@ -890,9 +889,9 @@ fn lcs_chars(lhs: &str, rhs: &str) -> Vec<char> {
     let n = left.len();
     let m = right.len();
     let mut table = vec![vec![0usize; m + 1]; n + 1];
-    for i in 0..n {
-        for j in 0..m {
-            if left[i] == right[j] {
+    for (i, lhs_char) in left.iter().enumerate() {
+        for (j, rhs_char) in right.iter().enumerate() {
+            if lhs_char == rhs_char {
                 table[i + 1][j + 1] = table[i][j] + 1;
             } else {
                 table[i + 1][j + 1] = table[i][j + 1].max(table[i + 1][j]);
