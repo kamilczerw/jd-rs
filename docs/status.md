@@ -50,11 +50,15 @@
 - Re-read the Go `DiffElement` definition to restate how path segments and list context (`Before`/`After`) encode everything required for patch application.
 - Traced the list-mode diff to confirm it hashes elements, runs an LCS to align common subsequences, and stitches nested container diffs in place while tracking positional context.
 - Verified object diffs walk keys in lexical order, emitting removals/additions with merge metadata parity when one side lacks a key.
+- Confirmed `diffRest`'s path cursor math and context recording (including the `+2` increment when appending) so our Rust implementation preserves Go's insertion points and `Before`/`After` behavior exactly.
+- Checked `golcs`'s reconstruction loop to ensure ties prefer consuming from the left array, matching the deterministic ordering relied upon by the Go diff.
 
 ### Findings & References
 1. **DiffElement structure** – Each hunk carries metadata, a fully qualified path, and optional `Before`/`After` context arrays used only for list diffs. This matches `diff.go`'s definition and establishes the Rust struct fields we must mirror. [(v2.2.2/v2/diff.go#L3-L44)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/diff.go#L3-L44)
 2. **List diff algorithm** – The Go list diff hashes elements, computes an LCS via `golcs`, and then iterates with cursors to accumulate add/remove hunks, inserting nested diffs when encountering compatible containers and recording context for patch validation. [(v2.2.2/v2/list.go#L69-L249)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/list.go#L69-L249)
 3. **Object diff ordering and metadata** – Objects sort both key sets, recurse when keys exist on both sides, and otherwise emit deletion/addition hunks (switching to merge metadata when requested). [(v2.2.2/v2/object.go#L123-L209)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/object.go#L123-L209)
+4. **Path cursor & context semantics** – `diffRest` advances the cursor by two when accumulating pure appends and records `Before`/`After` context relative to the common subsequence index, falling back to `voidNode{}` when the RHS lacks trailing context. [(v2.2.2/v2/list.go#L109-L235)](https://github.com/josephburnett/jd/blob/v2.2.2/v2/list.go#L109-L235)
+5. **LCS tie-breaking** – The upstream `golcs` implementation decrements the left index first when the DP table entries are equal, giving deterministic matches that favor earlier elements; the Rust LCS helper must mimic this behavior. [(golcs/golcs.go#L102-L124)](https://github.com/yudai/golcs/blob/master/golcs.go#L102-L124)
 
 ### Next Steps
 - Draft the Milestone 4 diff engine component spec capturing struct definitions, algorithm stages, and hashing dependencies before writing tests.

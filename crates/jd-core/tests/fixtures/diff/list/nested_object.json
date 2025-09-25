@@ -1,0 +1,25 @@
+{
+  "lhs": "[{\"id\":1,\"meta\":{\"name\":\"jd\",\"version\":1}}, {\"id\":2}]",
+  "rhs": "[{\"id\":1,\"meta\":{\"name\":\"jd\",\"version\":2}}, {\"id\":2}]",
+  "diff": [
+    {
+      "path": [
+        0,
+        "meta",
+        "version"
+      ],
+      "remove": [
+        {
+          "type": "Number",
+          "value": 1
+        }
+      ],
+      "add": [
+        {
+          "type": "Number",
+          "value": 2
+        }
+      ]
+    }
+  ]
+}
