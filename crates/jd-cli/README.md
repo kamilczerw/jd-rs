@@ -1,24 +1,41 @@
 # jd-cli
 
-Command-line interface crate for the Rust port of the Go [`jd`](https://github.com/josephburnett/jd) JSON diff and patch tool.
+Command-line interface for the Rust port of the Go [`jd`](https://github.com/josephburnett/jd) JSON diff and patch tool. The binary wires the `jd-core` crate into a parity-focused CLI experience.
 
 ## Usage
 
-During the workspace scaffolding milestone the CLI binary only supports `--help` and `--version`. Future milestones will wire up the full flag surface and diff/patch functionality.
+Run the binary with Cargo while the project iterates toward packaged releases:
 
-Run the binary with Cargo:
-
-```bash
-cargo run -p jd-cli -- --version
+```console
+$ cargo run -p jd-cli -- --help
 ```
+
+Key flags implemented so far:
+
+- `--version` – print `jd version <semver>` and exit.
+- `--format {jd,patch,merge}` / `-f` – select native jd, JSON Patch, or JSON Merge Patch rendering.
+- `--color` – enable ANSI color sequences for native format output.
+- Positional arguments (`FILE1 [FILE2]`) mirroring Go `jd` diff semantics, with `-` representing STDIN.
+
+Patch/translate/git-diff-driver/web modes are acknowledged but will emit informative errors until their milestones land.
 
 ## Examples
 
-```bash
-$ cargo run -p jd-cli -- --help
-Diff and patch JSON and YAML documents.
+```console
+$ cat <<'EOF' > /tmp/before.json
+{"name":"old"}
+EOF
+$ cat <<'EOF' > /tmp/after.json
+{"name":"new"}
+EOF
+$ cargo run -p jd-cli -- /tmp/before.json /tmp/after.json
+@ ["name"]
+- "old"
++ "new"
+$ cargo run -p jd-cli -- --format patch /tmp/before.json /tmp/after.json
+[{"op":"test","path":"/name","value":"old"},{"op":"remove","path":"/name","value":"old"},{"op":"add","path":"/name","value":"new"}]
 ```
 
 ## Compatibility with Go jd
 
-The CLI aims for byte-for-byte parity with `jd` v2.2.2. The current milestone provides the minimal scaffolding required to bootstrap tests and workflows; functional parity arrives in later milestones.
+The CLI mirrors Go `jd` v2.2.2 help text, exit codes, diff detection logic, and rendering byte-for-byte for the supported flags. Future milestones will extend parity coverage to patch/translate modes, git diff driver integration, and the web UI shim.

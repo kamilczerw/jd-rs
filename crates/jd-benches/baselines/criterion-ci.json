@@ -1,0 +1,30 @@
+{
+  "metadata": {
+    "generated_from": "cargo bench -p jd-benches --bench smoke -- --noplot --save-baseline ci",
+    "timestamp": "2025-09-25T16:56:52Z",
+    "tolerance": 1.25,
+    "unit": "ns"
+  },
+  "benchmarks": {
+    "diff": {
+      "kubernetes-deployment": 72076.79219780219,
+      "github-issue": 20259.183449074073,
+      "large-array": 1815180.5986249407
+    },
+    "patch-apply": {
+      "kubernetes-deployment": 548839.0513205281,
+      "github-issue": 32361.873287876966,
+      "large-array": 71033051.0
+    },
+    "render-native": {
+      "kubernetes-deployment": 35720.79433497537,
+      "github-issue": 50669.06095317726,
+      "large-array": 230435.75419058552
+    },
+    "render-json-patch": {
+      "kubernetes-deployment": 52466.57804838182,
+      "github-issue": 18446.886373987854,
+      "large-array": 518911.3021091811
+    }
+  }
+}

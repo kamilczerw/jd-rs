@@ -156,6 +156,12 @@ impl Path {
     }
 
     /// Returns a new path with the last segment removed, if any.
+    ///
+    /// ```
+    /// # use jd_core::diff::{Path, PathSegment};
+    /// let path = Path::new().with_segment(PathSegment::index(1));
+    /// assert!(path.drop_last().is_empty());
+    /// ```
     #[must_use]
     pub fn drop_last(&self) -> Self {
         let mut segments = self.0.clone();
@@ -164,17 +170,38 @@ impl Path {
     }
 
     /// Consumes the path and returns the owned segments.
+    ///
+    /// ```
+    /// # use jd_core::diff::{Path, PathSegment};
+    /// let path = Path::from(PathSegment::key("id"));
+    /// let segments = path.into_segments();
+    /// assert_eq!(segments.len(), 1);
+    /// ```
     #[must_use]
     pub fn into_segments(self) -> Vec<PathSegment> {
         self.0
     }
 
     /// Pushes a new segment in-place.
+    ///
+    /// ```
+    /// # use jd_core::diff::{Path, PathSegment};
+    /// let mut path = Path::new();
+    /// path.push(PathSegment::key("name"));
+    /// assert_eq!(path.len(), 1);
+    /// ```
     pub fn push(&mut self, segment: PathSegment) {
         self.0.push(segment);
     }
 
     /// Pops the last segment off the path.
+    ///
+    /// ```
+    /// # use jd_core::diff::{Path, PathSegment};
+    /// let mut path = Path::from(PathSegment::index(0));
+    /// assert!(path.pop().is_some());
+    /// assert!(path.is_empty());
+    /// ```
     pub fn pop(&mut self) -> Option<PathSegment> {
         self.0.pop()
     }
@@ -224,12 +251,24 @@ impl IntoIterator for Path {
 }
 
 /// Creates a path representing the root of a document.
+///
+/// ```
+/// # use jd_core::diff::root_path;
+/// let path = root_path();
+/// assert!(path.is_empty());
+/// ```
 #[must_use]
 pub fn root_path() -> Path {
     Path::new()
 }
 
 /// Builds a path from an iterator of segments.
+///
+/// ```
+/// # use jd_core::diff::{path_from_segments, PathSegment};
+/// let path = path_from_segments([PathSegment::key("a"), PathSegment::index(1)]);
+/// assert_eq!(path.len(), 2);
+/// ```
 #[must_use]
 pub fn path_from_segments<I>(segments: I) -> Path
 where

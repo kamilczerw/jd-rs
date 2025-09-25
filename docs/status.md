@@ -142,3 +142,35 @@
 - Implement Milestone 7 benchmark harnesses and scripts that compare Rust jd against the Go binary using shared fixtures.
 - Capture baseline numbers in `docs/benchmarks.md`, referencing the workloads above.
 - Raise ADRs if we consider optimizations (e.g., alternative hash strategies) that diverge from Go's design.
+
+## Status — Milestone 8 (Documentation Pass)
+
+### Summary
+- Re-reviewed Go renderer and patch sources to ensure newly added rustdoc examples describe the same metadata flow, merge semantics, and JSON Pointer restrictions as the upstream implementation.
+- Confirmed CLI help text, flag descriptions, and usage examples remain byte-for-byte with Go `jd` so the updated READMEs accurately reflect behavior.
+- Documented the current architecture, support crates, and testing strategy so new contributors can map the Rust workspace back to the Go source tree.
+
+### Findings & References
+1. **Renderer semantics** – `Diff.Render`, `RenderPatch`, and `RenderMerge` govern header inheritance, JSON Pointer encoding, and merge normalization; the rustdoc examples mirror these flows.【0e54f4†L18-L289】
+2. **Patch strategy docs** – `patchAll` and `jsonList.patch` enforce strict vs merge strategies, before/after context validation, and append semantics; the new documentation cross-references these behaviors.【d20d2f†L7-L112】【d20d2f†L216-L331】
+3. **CLI help & flags** – `printUsageAndExit` and the flag definitions in `main.go` remain the source of truth for README examples and option descriptions.【074fa5†L23-L199】
+
+### Next Steps
+- Keep docs and rustdoc examples synchronized with future milestones (CLI parity, performance tuning, release prep).
+- Expand architecture notes with benchmark results and fuzzing coverage once those milestones conclude.
+
+## Status — Milestone 9 (CI/CD, Quality Gates, and Release Prep Recon)
+
+### Summary
+- Reviewed the upstream Go GitHub Actions workflow to catalog the baseline lint/test/fuzz stages the Rust CI must meet or exceed during release preparation.
+- Audited the Go Makefile release targets to mirror multiplatform artifact expectations, fuzz gating, and release note generation requirements in our Rust automation.
+- Confirmed the implementation plan's Milestone 9 checklist so our CI matrix, coverage thresholds, and release collateral align with the agreed deliverables.
+
+### Findings & References
+1. **Go CI surface** – The Go repo's `go.yml` workflow runs tests and fuzzing on `ubuntu-latest`, establishing the minimum automation coverage we must preserve while expanding to a Rust multi-toolchain matrix.【50223a†L1-L27】
+2. **Release build expectations** – The upstream `Makefile` produces Linux/macOS/Windows binaries for amd64/arm64, drives fuzzing, and emits release notes, informing the scope of our release automation and artifact validation.【89354d†L1-L84】
+3. **Plan alignment** – Our implementation plan calls for Milestone 9 to add Criterion benchmarks, parity scripts, and document baseline metrics; ensuring CI and release prep incorporate those outputs keeps us in lockstep with the approved roadmap.【b54045†L99-L144】
+
+### Next Steps
+- Extend the GitHub Actions workflow with a stable/beta toolchain matrix across Linux, macOS, and Windows including fmt, clippy, tests, doc builds, coverage, and cargo-deny.
+- Integrate coverage and benchmark gating scripts while preparing release notes that summarize parity and performance relative to the Go implementation.

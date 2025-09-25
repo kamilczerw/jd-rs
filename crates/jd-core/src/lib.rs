@@ -1,21 +1,26 @@
 //! Core primitives for the Rust port of the `jd` JSON diff tool.
 //!
-//! The crate currently exposes the canonical data model used by the diff
-//! engine together with helpers for parsing JSON/YAML inputs into the
-//! canonical representation. Future milestones will extend this module with
-//! diffing, patching, rendering, and canonicalization pipelines that mirror
-//! the Go implementation.
+//! `jd-core` mirrors the Go implementation's canonicalization, diff,
+//! patch, and rendering semantics while exposing a convenient Rust API.
+//! All public items include runnable examples to make parity expectations
+//! explicit.
 //!
 //! ```
-//! use jd_core::{Node, DiffOptions};
+//! use jd_core::{DiffOptions, Node, RenderConfig};
 //!
-//! // Parse two JSON fragments and compare them structurally.
-//! let lhs = Node::from_json_str("{\"name\": \"jd\", \"version\": 2}")?;
-//! let rhs = Node::from_json_str("{\"version\": 2, \"name\": \"jd\"}")?;
+//! fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let base = Node::from_json_str("{\"name\":\"jd\",\"version\":1}")?;
+//!     let target = Node::from_json_str("{\"name\":\"jd\",\"version\":2}")?;
+//!     let diff = base.diff(&target, &DiffOptions::default());
+//!     assert!(!diff.is_empty());
 //!
-//! let opts = DiffOptions::default();
-//! assert!(lhs.eq_with_options(&rhs, &opts));
-//! # Ok::<(), jd_core::CanonicalizeError>(())
+//!     let rendered = diff.render(&RenderConfig::default());
+//!     assert!(rendered.contains("@ [\"version\"]"));
+//!
+//!     let patched = base.apply_patch(&diff)?;
+//!     assert_eq!(patched, target);
+//!     Ok(())
+//! }
 //! ```
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -30,6 +35,7 @@ mod patch;
 
 pub use diff::{Diff, DiffElement, DiffMetadata, Path, PathSegment, RenderConfig, RenderError};
 pub use error::{CanonicalizeError, OptionsError};
+pub use hash::{combine, hash_bytes, HashCode};
 pub use node::Node;
 pub use number::Number;
 pub use options::{ArrayMode, DiffOptions};

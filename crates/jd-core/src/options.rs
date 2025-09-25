@@ -37,24 +37,56 @@ impl Default for DiffOptions {
 
 impl DiffOptions {
     /// Returns the configured array interpretation mode.
+    ///
+    /// ```
+    /// # use jd_core::{ArrayMode, DiffOptions};
+    /// let opts = DiffOptions::default()
+    ///     .with_array_mode(ArrayMode::MultiSet)
+    ///     .expect("set array mode");
+    /// assert_eq!(opts.array_mode(), ArrayMode::MultiSet);
+    /// ```
     #[must_use]
     pub fn array_mode(&self) -> ArrayMode {
         self.array_mode
     }
 
     /// Returns the numeric equality tolerance.
+    ///
+    /// ```
+    /// # use jd_core::DiffOptions;
+    /// let opts = DiffOptions::default()
+    ///     .with_precision(0.1)
+    ///     .expect("set precision");
+    /// assert!((opts.precision() - 0.1).abs() < f64::EPSILON);
+    /// ```
     #[must_use]
     pub fn precision(&self) -> f64 {
         self.precision
     }
 
     /// Returns the keys used to identify objects within set semantics.
+    ///
+    /// ```
+    /// # use jd_core::DiffOptions;
+    /// let opts = DiffOptions::default()
+    ///     .with_set_keys(["id"])
+    ///     .expect("set keys");
+    /// assert_eq!(opts.set_keys().unwrap(), ["id"]);
+    /// ```
     #[must_use]
     pub fn set_keys(&self) -> Option<&[String]> {
         self.set_keys.as_deref()
     }
 
     /// Sets the array interpretation mode.
+    ///
+    /// ```
+    /// # use jd_core::{ArrayMode, DiffOptions};
+    /// let opts = DiffOptions::default()
+    ///     .with_array_mode(ArrayMode::Set)
+    ///     .expect("set array mode");
+    /// assert_eq!(opts.array_mode(), ArrayMode::Set);
+    /// ```
     pub fn with_array_mode(mut self, mode: ArrayMode) -> Result<Self, OptionsError> {
         self.array_mode = mode;
         self.validate()?;
@@ -62,6 +94,14 @@ impl DiffOptions {
     }
 
     /// Sets the numeric precision tolerance.
+    ///
+    /// ```
+    /// # use jd_core::DiffOptions;
+    /// let opts = DiffOptions::default()
+    ///     .with_precision(0.5)
+    ///     .expect("set precision");
+    /// assert!((opts.precision() - 0.5).abs() < f64::EPSILON);
+    /// ```
     pub fn with_precision(mut self, precision: f64) -> Result<Self, OptionsError> {
         self.precision = precision;
         self.validate()?;
@@ -69,6 +109,14 @@ impl DiffOptions {
     }
 
     /// Sets the object identity keys used when arrays behave as sets.
+    ///
+    /// ```
+    /// # use jd_core::DiffOptions;
+    /// let opts = DiffOptions::default()
+    ///     .with_set_keys(["name", "id"])
+    ///     .expect("set keys");
+    /// assert_eq!(opts.set_keys().unwrap(), ["id", "name"]);
+    /// ```
     pub fn with_set_keys<I, S>(mut self, keys: I) -> Result<Self, OptionsError>
     where
         I: IntoIterator<Item = S>,

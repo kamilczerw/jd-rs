@@ -8,13 +8,22 @@ on:
     - cron: "0 3 * * *"
 
 jobs:
-  lint-test:
-    runs-on: ubuntu-latest
+  checks:
+    name: checks (${{ matrix.os }} / ${{ matrix.toolchain }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        toolchain: [stable, beta]
+    defaults:
+      run:
+        shell: bash
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.88.0
+          toolchain: ${{ matrix.toolchain }}
           components: clippy, rustfmt
       - name: Cargo fmt
         run: cargo fmt --all -- --check
@@ -24,10 +33,53 @@ jobs:
         run: cargo test --workspace --all-targets
       - name: Cargo test docs
         run: cargo test --workspace --doc
+
+  quality-gates:
+    name: docs & license gates
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt
+      - name: Cargo doc
+        run: cargo doc --workspace --no-deps -D warnings
       - name: Cargo deny
         uses: EmbarkStudios/cargo-deny-action@v1
         with:
           command: check
+
+  coverage:
+    name: coverage (llvm-cov)
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: llvm-tools-preview
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked
+      - name: Collect coverage
+        run: cargo llvm-cov --workspace --fail-under-lines 80 --fail-under-regions 70 --summary-only
+
+  benches:
+    name: benchmark guardrails
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - name: Run Criterion suite
+        run: cargo bench -p jd-benches --bench smoke -- --noplot --save-baseline current
+      - name: Check regressions
+        run: scripts/check_bench_regressions.py --run-name current
+
   fuzz-smoke:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest

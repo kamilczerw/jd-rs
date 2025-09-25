@@ -1,17 +1,23 @@
 # jd-fuzz
 
-Fuzzing harness crate for the Rust port of the Go [`jd`](https://github.com/josephburnett/jd) project.
+Fuzzing harness crate for the Rust port of the Go [`jd`](https://github.com/josephburnett/jd) project. The harnesses double as lightweight helpers for property-based smoke tests.
 
 ## Usage
 
-The crate currently only provides scaffolding so that the workspace builds cleanly. Dedicated `cargo-fuzz` targets will be added in Milestone 5 once the core data model and diff implementation are available.
+The crate exposes three entry points suitable for `cargo fuzz` targets or manual invocation:
 
-## Examples
+- `fuzz_canonicalization` — feeds arbitrary bytes through the JSON/YAML readers.
+- `fuzz_diff` — generates random nodes and computes diffs/patches round-trips.
+- `fuzz_patch` — applies both generated and arbitrary diffs to random documents.
+
+When wiring a fuzz target, call the desired helper with the raw byte slice provided by `cargo fuzz`:
 
 ```rust
-assert!(!jd_fuzz::is_ready());
+fn fuzz_target(data: &[u8]) {
+    jd_fuzz::fuzz_diff(data);
+}
 ```
 
 ## Compatibility with Go jd
 
-Fuzz targets will exercise the same canonicalization, diff, and patch code paths as the Go implementation to ensure behavioral parity. No fuzzing functionality is available yet during the scaffolding milestone.
+The harnesses reuse the production `jd-core` types, ensuring every discovered crash or divergence maps directly to behavior present in the Go implementation. As additional diff modes and renderers land, new helpers will be added to maintain parity coverage.

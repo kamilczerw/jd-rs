@@ -39,6 +39,12 @@ pub struct DiffMetadata {
 
 impl DiffMetadata {
     /// Constructs metadata for merge mode.
+    ///
+    /// ```
+    /// # use jd_core::DiffMetadata;
+    /// let meta = DiffMetadata::merge();
+    /// assert!(meta.merge);
+    /// ```
     #[must_use]
     pub fn merge() -> Self {
         Self { merge: true, set_keys: None, color: None }
@@ -109,12 +115,24 @@ pub struct DiffElement {
 
 impl DiffElement {
     /// Creates a blank diff element.
+    ///
+    /// ```
+    /// # use jd_core::diff::DiffElement;
+    /// let element = DiffElement::new();
+    /// assert!(element.path.is_empty());
+    /// ```
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Sets the metadata for the element.
+    ///
+    /// ```
+    /// # use jd_core::diff::{DiffElement, DiffMetadata};
+    /// let element = DiffElement::new().with_metadata(DiffMetadata::merge());
+    /// assert!(element.metadata.unwrap().merge);
+    /// ```
     #[must_use]
     pub fn with_metadata(mut self, metadata: DiffMetadata) -> Self {
         self.metadata = Some(metadata);
@@ -122,6 +140,12 @@ impl DiffElement {
     }
 
     /// Sets the path for the element.
+    ///
+    /// ```
+    /// # use jd_core::diff::{DiffElement, PathSegment};
+    /// let element = DiffElement::new().with_path(PathSegment::key("foo"));
+    /// assert_eq!(element.path.len(), 1);
+    /// ```
     #[must_use]
     pub fn with_path<P>(mut self, path: P) -> Self
     where
@@ -132,6 +156,12 @@ impl DiffElement {
     }
 
     /// Sets the before context.
+    ///
+    /// ```
+    /// # use jd_core::{diff::DiffElement, Node};
+    /// let element = DiffElement::new().with_before(vec![Node::Void]);
+    /// assert_eq!(element.before.len(), 1);
+    /// ```
     #[must_use]
     pub fn with_before(mut self, before: Vec<Node>) -> Self {
         self.before = before;
@@ -139,6 +169,12 @@ impl DiffElement {
     }
 
     /// Sets the removal list.
+    ///
+    /// ```
+    /// # use jd_core::{diff::DiffElement, Node};
+    /// let element = DiffElement::new().with_remove(vec![Node::Null]);
+    /// assert_eq!(element.remove.len(), 1);
+    /// ```
     #[must_use]
     pub fn with_remove(mut self, remove: Vec<Node>) -> Self {
         self.remove = remove;
@@ -146,6 +182,12 @@ impl DiffElement {
     }
 
     /// Sets the addition list.
+    ///
+    /// ```
+    /// # use jd_core::{diff::DiffElement, Node};
+    /// let element = DiffElement::new().with_add(vec![Node::Bool(true)]);
+    /// assert_eq!(element.add.len(), 1);
+    /// ```
     #[must_use]
     pub fn with_add(mut self, add: Vec<Node>) -> Self {
         self.add = add;
@@ -153,6 +195,12 @@ impl DiffElement {
     }
 
     /// Sets the after context.
+    ///
+    /// ```
+    /// # use jd_core::{diff::DiffElement, Node};
+    /// let element = DiffElement::new().with_after(vec![Node::Void]);
+    /// assert_eq!(element.after.len(), 1);
+    /// ```
     #[must_use]
     pub fn with_after(mut self, after: Vec<Node>) -> Self {
         self.after = after;
@@ -181,12 +229,24 @@ pub struct RenderConfig {
 
 impl RenderConfig {
     /// Constructs a configuration with default settings (no ANSI color).
+    ///
+    /// ```
+    /// # use jd_core::RenderConfig;
+    /// let config = RenderConfig::new();
+    /// assert!(!config.color_enabled());
+    /// ```
     #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
     /// Enables or disables ANSI color output.
+    ///
+    /// ```
+    /// # use jd_core::RenderConfig;
+    /// let config = RenderConfig::new().with_color(true);
+    /// assert!(config.color_enabled());
+    /// ```
     #[must_use]
     pub fn with_color(mut self, enabled: bool) -> Self {
         self.color = enabled;
@@ -194,6 +254,12 @@ impl RenderConfig {
     }
 
     /// Indicates whether color output is enabled.
+    ///
+    /// ```
+    /// # use jd_core::RenderConfig;
+    /// let config = RenderConfig::color(true);
+    /// assert!(config.color_enabled());
+    /// ```
     #[must_use]
     pub fn color_enabled(self) -> bool {
         self.color
@@ -202,6 +268,12 @@ impl RenderConfig {
 
 impl RenderConfig {
     /// Convenience constructor enabling color output.
+    ///
+    /// ```
+    /// # use jd_core::RenderConfig;
+    /// let config = RenderConfig::color(true);
+    /// assert!(config.color_enabled());
+    /// ```
     #[must_use]
     pub fn color(enabled: bool) -> Self {
         Self::new().with_color(enabled)
@@ -209,6 +281,13 @@ impl RenderConfig {
 }
 
 /// Errors that can occur while rendering or reversing diffs.
+///
+/// ```
+/// # use jd_core::{Diff, diff::DiffElement};
+/// let diff = Diff::from_elements(vec![DiffElement::new()]);
+/// let err = diff.render_patch().unwrap_err();
+/// assert!(err.to_string().contains("empty diff element"));
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RenderError {
     message: String,
@@ -242,35 +321,73 @@ impl From<PatchError> for RenderError {
 
 impl Diff {
     /// Constructs an empty diff.
+    ///
+    /// ```
+    /// # use jd_core::Diff;
+    /// let diff = Diff::empty();
+    /// assert!(diff.is_empty());
+    /// ```
     #[must_use]
     pub fn empty() -> Self {
         Self { elements: Vec::new() }
     }
 
     /// Builds a diff from the provided elements.
+    ///
+    /// ```
+    /// # use jd_core::diff::DiffElement;
+    /// # use jd_core::Diff;
+    /// let diff = Diff::from_elements(vec![DiffElement::new()]);
+    /// assert_eq!(diff.len(), 1);
+    /// ```
     #[must_use]
     pub fn from_elements(elements: Vec<DiffElement>) -> Self {
         Self { elements }
     }
 
     /// Returns the number of elements in the diff.
+    ///
+    /// ```
+    /// # use jd_core::{Diff, diff::DiffElement};
+    /// let diff = Diff::from_elements(vec![DiffElement::new(), DiffElement::new()]);
+    /// assert_eq!(diff.len(), 2);
+    /// ```
     #[must_use]
     pub fn len(&self) -> usize {
         self.elements.len()
     }
 
     /// Indicates whether the diff is empty.
+    ///
+    /// ```
+    /// # use jd_core::Diff;
+    /// assert!(Diff::empty().is_empty());
+    /// ```
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.elements.is_empty()
     }
 
     /// Returns an iterator over the elements.
+    ///
+    /// ```
+    /// # use jd_core::{Diff, diff::DiffElement};
+    /// let diff = Diff::from_elements(vec![DiffElement::new()]);
+    /// let mut iter = diff.iter();
+    /// assert!(iter.next().is_some());
+    /// ```
     pub fn iter(&self) -> std::slice::Iter<'_, DiffElement> {
         self.elements.iter()
     }
 
     /// Consumes the diff and returns the elements.
+    ///
+    /// ```
+    /// # use jd_core::{Diff, diff::DiffElement};
+    /// let diff = Diff::from_elements(vec![DiffElement::new()]);
+    /// let elements = diff.into_elements();
+    /// assert_eq!(elements.len(), 1);
+    /// ```
     #[must_use]
     pub fn into_elements(self) -> Vec<DiffElement> {
         self.elements
@@ -280,12 +397,11 @@ impl Diff {
     ///
     /// ```
     /// # use jd_core::{DiffOptions, Node, RenderConfig};
-    /// let lhs = Node::from_json_str("{\"a\":1}")?;
-    /// let rhs = Node::from_json_str("{\"a\":2}")?;
+    /// let lhs = Node::from_json_str("{\"a\":1}").expect("valid JSON");
+    /// let rhs = Node::from_json_str("{\"a\":2}").expect("valid JSON");
     /// let diff = lhs.diff(&rhs, &DiffOptions::default());
     /// let rendered = diff.render(&RenderConfig::default());
     /// assert_eq!(rendered, "@ [\"a\"]\n- 1\n+ 2\n");
-    /// # Ok::<(), jd_core::CanonicalizeError>(())
     /// ```
     #[must_use]
     pub fn render(&self, config: &RenderConfig) -> String {
@@ -306,12 +422,11 @@ impl Diff {
     ///
     /// ```
     /// # use jd_core::{DiffOptions, Node};
-    /// let lhs = Node::from_json_str("[1,2,3]")?;
-    /// let rhs = Node::from_json_str("[1,4,3]")?;
+    /// let lhs = Node::from_json_str("[1,2,3]").expect("valid JSON");
+    /// let rhs = Node::from_json_str("[1,4,3]").expect("valid JSON");
     /// let diff = lhs.diff(&rhs, &DiffOptions::default());
-    /// let patch = diff.render_patch()?;
+    /// let patch = diff.render_patch().expect("render patch");
     /// assert!(patch.starts_with("[{\"op\":\"test\""));
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn render_patch(&self) -> Result<String, RenderError> {
         if self.is_empty() {
@@ -447,6 +562,13 @@ impl Diff {
     }
 
     /// Serializes the diff structure as JSON for debugging.
+    ///
+    /// ```
+    /// # use jd_core::{Diff, diff::DiffElement};
+    /// let diff = Diff::from_elements(vec![DiffElement::new()]);
+    /// let raw = diff.render_raw().unwrap();
+    /// assert!(raw.starts_with("[{"));
+    /// ```
     pub fn render_raw(&self) -> Result<String, RenderError> {
         Ok(serde_json::to_string(&self.elements)?)
     }
@@ -455,13 +577,12 @@ impl Diff {
     ///
     /// ```
     /// # use jd_core::{DiffOptions, Node};
-    /// let lhs = Node::from_json_str("{\"a\":1}")?;
-    /// let rhs = Node::from_json_str("{\"a\":2}")?;
+    /// let lhs = Node::from_json_str("{\"a\":1}").expect("valid JSON");
+    /// let rhs = Node::from_json_str("{\"a\":2}").expect("valid JSON");
     /// let diff = lhs.diff(&rhs, &DiffOptions::default());
-    /// let reversed = diff.reverse()?;
-    /// let restored = rhs.apply_patch(&reversed)?;
+    /// let reversed = diff.reverse().expect("reverse diff");
+    /// let restored = rhs.apply_patch(&reversed).expect("apply reverse");
     /// assert_eq!(restored, lhs);
-    /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn reverse(&self) -> Result<Diff, RenderError> {
         if self.elements.is_empty() {
