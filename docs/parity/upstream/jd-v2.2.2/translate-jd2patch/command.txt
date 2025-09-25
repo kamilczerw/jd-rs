@@ -1,0 +1,3 @@
+# Run from this directory
+/tmp/jd -t jd2patch input.jd > output.patch
+

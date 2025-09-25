@@ -1,0 +1,10 @@
+@ ["services",0,"replicas"]
+- 2
++ 3
+@ ["services",1,"replicas"]
+- 1
++ 2
+@ ["services",2]
+  {"name":"worker","replicas":2}
++ {"name":"scheduler","replicas":1}
+]

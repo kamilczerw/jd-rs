@@ -1,0 +1,3 @@
+# Run from this directory
+/tmp/jd -setkeys id before.json after.json
+

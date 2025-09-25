@@ -1,0 +1,3 @@
+# Run from this directory
+/tmp/jd -mset before.json after.json
+

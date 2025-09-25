@@ -1,0 +1,3 @@
+# Run from this directory
+/tmp/jd -o diff.jd before.json after.json
+

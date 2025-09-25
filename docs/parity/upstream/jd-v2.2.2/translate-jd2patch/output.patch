@@ -1,0 +1,1 @@
+[{"op":"test","path":"/features/1","value":"patch"},{"op":"add","path":"/features/2","value":"yaml"},{"op":"test","path":"/version","value":1},{"op":"remove","path":"/version","value":1},{"op":"add","path":"/version","value":2}]
