@@ -14,7 +14,8 @@ use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{ArgAction, Parser, ValueEnum};
-use jd_core::{DiffOptions, Node, RenderConfig};
+use jd_core::{ArrayMode, DiffOptions, Node, RenderConfig};
+use serde_json::Value;
 
 const VERSION_NUMBER: &str = env!("CARGO_PKG_VERSION");
 const VERSION_BANNER: &str = concat!("jd version ", env!("CARGO_PKG_VERSION"));
@@ -30,6 +31,7 @@ Options:
   -color       Print color diff.
   -p           Apply patch FILE1 to FILE2 or STDIN.
   -o=FILE3     Write to FILE3 instead of STDOUT.
+  -opts='[]'   JSON array of options ("SET", "MULTISET", {"precision":N}, {"setkeys":[...]}).
   -set         Treat arrays as sets.
   -mset        Treat arrays as multisets (bags).
   -setkeys     Keys to identify set objects
@@ -97,6 +99,10 @@ struct Cli {
     /// Write output to FILE instead of STDOUT.
     #[arg(short = 'o', long = "output")]
     output: Option<PathBuf>,
+
+    /// JSON-encoded diff options (mirrors Go `-opts`).
+    #[arg(long = "opts", default_value = "[]")]
+    opts: String,
 
     /// Enable patch mode (apply FILE1 patch to FILE2/STDIN).
     #[arg(short = 'p', action = ArgAction::SetTrue)]
@@ -199,16 +205,6 @@ enum Mode {
 }
 
 fn run_diff(cli: &Cli) -> Result<i32> {
-    if cli.set {
-        bail!("-set is not implemented yet");
-    }
-    if cli.multiset {
-        bail!("-mset is not implemented yet");
-    }
-    if cli.setkeys.is_some() {
-        bail!("-setkeys is not implemented yet");
-    }
-
     let (first, second) = match cli.inputs.len() {
         1 => (InputSource::File(path_from(&cli.inputs[0])?), InputSource::Stdin),
         2 => (
@@ -303,9 +299,133 @@ fn parse_node(input: &str, yaml: bool) -> Result<Node> {
     }
 }
 
-fn build_options(_cli: &Cli) -> Result<DiffOptions> {
-    let options = DiffOptions::default();
+fn build_options(cli: &Cli) -> Result<DiffOptions> {
+    let mut options = DiffOptions::default();
+
+    for option in parse_opts_json(&cli.opts)? {
+        options = apply_parsed_option(options, option)?;
+    }
+
+    if cli.set && cli.multiset {
+        bail!("-set and -mset cannot be combined");
+    }
+
+    if cli.set {
+        options = options.with_array_mode(ArrayMode::Set).map_err(|err| anyhow!(err))?;
+    }
+
+    if cli.multiset {
+        options = options.with_array_mode(ArrayMode::MultiSet).map_err(|err| anyhow!(err))?;
+    }
+
+    if let Some(setkeys) = &cli.setkeys {
+        let keys = parse_flag_set_keys(setkeys)?;
+        options = options.with_set_keys(keys).map_err(|err| anyhow!(err))?;
+    }
+
+    if let Some(precision) = cli.precision {
+        options = options.with_precision(precision).map_err(|err| anyhow!(err))?;
+    }
+
     Ok(options)
+}
+
+#[derive(Debug)]
+enum ParsedOption {
+    ArrayMode(ArrayMode),
+    Precision(f64),
+    SetKeys(Vec<String>),
+}
+
+fn apply_parsed_option(options: DiffOptions, option: ParsedOption) -> Result<DiffOptions> {
+    match option {
+        ParsedOption::ArrayMode(mode) => options.with_array_mode(mode).map_err(|err| anyhow!(err)),
+        ParsedOption::Precision(value) => options.with_precision(value).map_err(|err| anyhow!(err)),
+        ParsedOption::SetKeys(keys) => options.with_set_keys(keys).map_err(|err| anyhow!(err)),
+    }
+}
+
+fn parse_flag_set_keys(raw: &str) -> Result<Vec<String>> {
+    let mut keys = Vec::new();
+    for segment in raw.split(',') {
+        let trimmed = segment.trim();
+        if trimmed.is_empty() {
+            bail!("invalid set key: {segment}");
+        }
+        keys.push(trimmed.to_string());
+    }
+    if keys.is_empty() {
+        bail!("-setkeys requires at least one key");
+    }
+    Ok(keys)
+}
+
+fn parse_opts_json(raw: &str) -> Result<Vec<ParsedOption>> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err(anyhow!("-opts requires a JSON array"));
+    }
+
+    let value: Value = serde_json::from_str(trimmed)
+        .with_context(|| format!("failed to parse -opts JSON: {trimmed}"))?;
+    let items = match value {
+        Value::Array(items) => items,
+        other => return Err(anyhow!("-opts expects a JSON array, but received {}", other)),
+    };
+
+    let mut parsed = Vec::new();
+    for item in &items {
+        match item {
+            Value::String(name) => match name.as_str() {
+                "SET" => parsed.push(ParsedOption::ArrayMode(ArrayMode::Set)),
+                "MULTISET" => parsed.push(ParsedOption::ArrayMode(ArrayMode::MultiSet)),
+                other => {
+                    bail!("unsupported -opts option: {other}");
+                }
+            },
+            Value::Object(map) => {
+                if map.contains_key("@") || map.contains_key("^") {
+                    bail!("path-specific -opts entries are not supported yet");
+                }
+                if map.len() != 1 {
+                    bail!("unsupported -opts object: {item}");
+                }
+                let (key, value) = map.iter().next().unwrap();
+                match key.as_str() {
+                    "precision" => {
+                        let number = value
+                            .as_f64()
+                            .ok_or_else(|| anyhow!("precision option expects a numeric value"))?;
+                        parsed.push(ParsedOption::Precision(number));
+                    }
+                    "setkeys" => {
+                        let arr = value
+                            .as_array()
+                            .ok_or_else(|| anyhow!("setkeys option expects an array of strings"))?;
+                        let mut keys = Vec::new();
+                        for key_value in arr {
+                            let key_str = key_value.as_str().ok_or_else(|| {
+                                anyhow!("setkeys option expects an array of strings")
+                            })?;
+                            keys.push(key_str.to_string());
+                        }
+                        if keys.is_empty() {
+                            bail!("setkeys option requires at least one key");
+                        }
+                        parsed.push(ParsedOption::SetKeys(keys));
+                    }
+                    other => {
+                        bail!("unsupported -opts object option: {other}");
+                    }
+                }
+            }
+            _ => {
+                bail!("unsupported -opts entry: {item}");
+            }
+        }
+    }
+
+    Ok(parsed)
 }
 
 fn merge_patch(lhs: &Node, rhs: &Node) -> Option<Node> {
@@ -374,6 +494,7 @@ where
             Some("-mset") => canonicalized.push(OsString::from("--mset")),
             Some("-precision") => canonicalized.push(OsString::from("--precision")),
             Some("-setkeys") => canonicalized.push(OsString::from("--setkeys")),
+            Some("-opts") => canonicalized.push(OsString::from("--opts")),
             Some("-v2") => canonicalized.push(OsString::from("--v2")),
             Some(other) if other.starts_with("-f=") => {
                 canonicalized.push(OsString::from("-f"));
@@ -386,6 +507,10 @@ where
             Some(other) if other.starts_with("-setkeys=") => {
                 canonicalized.push(OsString::from("--setkeys"));
                 canonicalized.push(OsString::from(other.trim_start_matches("-setkeys=")));
+            }
+            Some(other) if other.starts_with("-opts=") => {
+                canonicalized.push(OsString::from("--opts"));
+                canonicalized.push(OsString::from(other.trim_start_matches("-opts=")));
             }
             _ => canonicalized.push(arg),
         }
@@ -441,6 +566,9 @@ mod tests {
             OsString::from("-setkeys"),
             OsString::from("id"),
             OsString::from("-setkeys=name"),
+            OsString::from("-opts"),
+            OsString::from("[\"SET\"]"),
+            OsString::from("-opts=[{\"precision\":0.1}]"),
         ];
         let canonicalized = canonicalize_args(input);
         assert_eq!(
@@ -458,6 +586,10 @@ mod tests {
                 OsString::from("id"),
                 OsString::from("--setkeys"),
                 OsString::from("name"),
+                OsString::from("--opts"),
+                OsString::from("[\"SET\"]"),
+                OsString::from("--opts"),
+                OsString::from("[{\"precision\":0.1}]")
             ]
         );
     }

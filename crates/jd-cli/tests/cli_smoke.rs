@@ -124,3 +124,53 @@ fn diff_single_argument_reads_stdin() {
         .stdout(expected)
         .stderr(predicate::str::is_empty());
 }
+
+#[test]
+fn opts_set_treats_arrays_as_sets() {
+    let lhs = write_tempfile("{\"items\":[1,2,3]}");
+    let rhs = write_tempfile("{\"items\":[3,2,1]}");
+
+    Command::cargo_bin("jd")
+        .expect("binary jd should be built")
+        .arg("--opts")
+        .arg("[\"SET\"]")
+        .arg(lhs.path())
+        .arg(rhs.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::is_empty());
+}
+
+#[test]
+fn opts_precision_tolerates_small_differences() {
+    let lhs = write_tempfile("{\"value\":1.0}");
+    let rhs = write_tempfile("{\"value\":1.0004}");
+
+    Command::cargo_bin("jd")
+        .expect("binary jd should be built")
+        .arg("--opts")
+        .arg("[{\"precision\":0.001}]")
+        .arg(lhs.path())
+        .arg(rhs.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::is_empty())
+        .stderr(predicate::str::is_empty());
+}
+
+#[test]
+fn opts_path_specific_entries_are_rejected() {
+    let lhs = write_tempfile("{\"items\":[1]}");
+    let rhs = write_tempfile("{\"items\":[2]}");
+
+    Command::cargo_bin("jd")
+        .expect("binary jd should be built")
+        .arg("--opts")
+        .arg("[{\"@\":[\"items\"],\"^\":[\"SET\"]}]")
+        .arg(lhs.path())
+        .arg(rhs.path())
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("path-specific -opts entries are not supported yet"));
+}
