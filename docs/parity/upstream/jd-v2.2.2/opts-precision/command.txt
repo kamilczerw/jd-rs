@@ -1,0 +1,2 @@
+# Run from this directory
+/tmp/jd -opts='[{"precision":0.001}]' before.json after.json
