@@ -1,0 +1,2 @@
+# Run from this directory
+/tmp/jd -p -o patched.json patch.jd original.json

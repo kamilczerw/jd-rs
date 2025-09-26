@@ -1,0 +1,13 @@
+@ ["active"]
+- false
++ true
+@ ["count"]
+- 1
++ 2
+@ ["items",1]
+  "a"
+- "b"
++ "c"
+]
+@ ["note"]
++ "new"

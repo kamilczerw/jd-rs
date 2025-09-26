@@ -1,0 +1,11 @@
+{
+  "items": [
+    1,
+    2,
+    5
+  ],
+  "enabled": true,
+  "metadata": {
+    "owner": "alice"
+  }
+}

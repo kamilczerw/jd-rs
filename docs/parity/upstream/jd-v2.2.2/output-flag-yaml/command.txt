@@ -1,0 +1,2 @@
+# Run from this directory
+/tmp/jd -yaml -o diff.jd before.yaml after.yaml

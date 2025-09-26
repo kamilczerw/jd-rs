@@ -1,0 +1,2 @@
+# Run from this directory
+/tmp/jd -f patch -o diff.patch before.json after.json

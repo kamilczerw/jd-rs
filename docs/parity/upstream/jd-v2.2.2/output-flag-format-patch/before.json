@@ -1,0 +1,7 @@
+{
+  "users": [
+    {"id": 1, "roles": ["reader"]},
+    {"id": 2, "roles": ["admin", "editor"]}
+  ],
+  "threshold": 10
+}

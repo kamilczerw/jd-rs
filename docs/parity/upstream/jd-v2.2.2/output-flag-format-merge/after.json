@@ -1,0 +1,9 @@
+{
+  "settings": {
+    "retry": 3,
+    "mode": "fast",
+    "logLevel": "debug"
+  },
+  "features": ["alpha"],
+  "region": "us-east-1"
+}

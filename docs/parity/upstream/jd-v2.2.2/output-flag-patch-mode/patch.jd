@@ -1,0 +1,12 @@
+@ ["config","enabled"]
+- true
++ false
+@ ["config","threshold"]
+- 0.25
++ 0.5
+@ ["config","notes"]
++ "auto"
+@ ["versions",2]
+  2
++ 3
+]

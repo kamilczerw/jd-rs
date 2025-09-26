@@ -1,0 +1,8 @@
+[
+  {"op": "test", "path": "/name", "value": "alpha"},
+  {"op": "remove", "path": "/name", "value": "alpha"},
+  {"op": "add", "path": "/name", "value": "gamma"},
+  {"op": "add", "path": "/enabled", "value": true},
+  {"op": "test", "path": "/deprecated", "value": "legacy"},
+  {"op": "remove", "path": "/deprecated", "value": "legacy"}
+]
