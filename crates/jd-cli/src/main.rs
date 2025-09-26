@@ -278,9 +278,22 @@ where
             Some("-help") => canonicalized.push(OsString::from("--help")),
             Some("-version") => canonicalized.push(OsString::from("--version")),
             Some("-color") => canonicalized.push(OsString::from("--color")),
+            Some("-yaml") => canonicalized.push(OsString::from("--yaml")),
+            Some("-set") => canonicalized.push(OsString::from("--set")),
+            Some("-mset") => canonicalized.push(OsString::from("--mset")),
+            Some("-precision") => canonicalized.push(OsString::from("--precision")),
+            Some("-setkeys") => canonicalized.push(OsString::from("--setkeys")),
             Some(other) if other.starts_with("-f=") => {
                 canonicalized.push(OsString::from("-f"));
                 canonicalized.push(OsString::from(other.trim_start_matches("-f=")));
+            }
+            Some(other) if other.starts_with("-precision=") => {
+                canonicalized.push(OsString::from("--precision"));
+                canonicalized.push(OsString::from(other.trim_start_matches("-precision=")));
+            }
+            Some(other) if other.starts_with("-setkeys=") => {
+                canonicalized.push(OsString::from("--setkeys"));
+                canonicalized.push(OsString::from(other.trim_start_matches("-setkeys=")));
             }
             _ => canonicalized.push(arg),
         }
@@ -313,6 +326,40 @@ mod tests {
         let input = vec![OsString::from("jd"), OsString::from("-f=patch")];
         let canonicalized = canonicalize_args(input);
         assert_eq!(canonicalized, vec!["jd", "-f", "patch"]);
+    }
+
+    #[test]
+    fn canonicalizes_single_dash_long_flags() {
+        let input = vec![
+            OsString::from("jd"),
+            OsString::from("-yaml"),
+            OsString::from("-precision"),
+            OsString::from("0.01"),
+            OsString::from("-precision=0.02"),
+            OsString::from("-set"),
+            OsString::from("-mset"),
+            OsString::from("-setkeys"),
+            OsString::from("id"),
+            OsString::from("-setkeys=name"),
+        ];
+        let canonicalized = canonicalize_args(input);
+        assert_eq!(
+            canonicalized,
+            vec![
+                OsString::from("jd"),
+                OsString::from("--yaml"),
+                OsString::from("--precision"),
+                OsString::from("0.01"),
+                OsString::from("--precision"),
+                OsString::from("0.02"),
+                OsString::from("--set"),
+                OsString::from("--mset"),
+                OsString::from("--setkeys"),
+                OsString::from("id"),
+                OsString::from("--setkeys"),
+                OsString::from("name"),
+            ]
+        );
     }
 
     #[test]
