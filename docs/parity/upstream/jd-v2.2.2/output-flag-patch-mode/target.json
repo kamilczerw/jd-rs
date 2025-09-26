@@ -1,0 +1,8 @@
+{
+  "config": {
+    "enabled": false,
+    "threshold": 0.5,
+    "notes": "auto"
+  },
+  "versions": [1, 2, 3]
+}

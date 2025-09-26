@@ -1,0 +1,7 @@
+name: service-a
+replicas: 2
+env:
+  - name: LOG_LEVEL
+    value: info
+  - name: FEATURE_X
+    value: "false"

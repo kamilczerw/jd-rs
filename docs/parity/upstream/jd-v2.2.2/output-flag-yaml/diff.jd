@@ -1,0 +1,13 @@
+@ ["env",0,"value"]
+- "info"
++ "debug"
+@ ["env",1,"value"]
+- "false"
++ "true"
+@ ["env",2]
+  {"name":"FEATURE_X","value":"true"}
++ {"name":"FEATURE_Y","value":"enabled"}
+]
+@ ["replicas"]
+- 2
++ 3

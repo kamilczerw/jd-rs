@@ -1,0 +1,8 @@
+{
+  "users": [
+    {"id": 1, "roles": ["reader", "commenter"]},
+    {"id": 3, "roles": ["admin"]}
+  ],
+  "threshold": 12,
+  "status": "active"
+}

@@ -1,0 +1,7 @@
+{
+  "settings": {
+    "retry": 1,
+    "mode": "safe"
+  },
+  "features": ["alpha", "beta"]
+}

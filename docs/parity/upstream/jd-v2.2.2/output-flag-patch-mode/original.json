@@ -1,0 +1,7 @@
+{
+  "config": {
+    "enabled": true,
+    "threshold": 0.25
+  },
+  "versions": [1, 2]
+}
