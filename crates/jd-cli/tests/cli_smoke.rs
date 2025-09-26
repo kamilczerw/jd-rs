@@ -44,7 +44,7 @@ fn help_succeeds() {
         .assert()
         .success()
         .stdout(predicate::str::contains("Usage:"))
-        .stdout(predicate::str::contains("Diff and patch JSON and YAML documents."));
+        .stdout(predicate::str::contains("Diff and patch JSON files."));
 }
 
 #[test]
