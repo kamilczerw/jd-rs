@@ -6,6 +6,7 @@
 //! will extend this binary with patch/translate modes and the remaining
 //! flag surface.
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsString;
 use std::fs;
 use std::io::{self, Read, Write};
@@ -15,7 +16,44 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::{ArgAction, Parser, ValueEnum};
 use jd_core::{DiffOptions, Node, RenderConfig};
 
+const VERSION_NUMBER: &str = env!("CARGO_PKG_VERSION");
 const VERSION_BANNER: &str = concat!("jd version ", env!("CARGO_PKG_VERSION"));
+
+const HELP_TEMPLATE: &str = r#"Usage: jd [OPTION]... FILE1 [FILE2]
+Diff and patch JSON files.
+
+Prints the diff of FILE1 and FILE2 to STDOUT.
+When FILE2 is omitted the second input is read from STDIN.
+When patching (-p) FILE1 is a diff.
+
+Options:
+  -color       Print color diff.
+  -p           Apply patch FILE1 to FILE2 or STDIN.
+  -o=FILE3     Write to FILE3 instead of STDOUT.
+  -set         Treat arrays as sets.
+  -mset        Treat arrays as multisets (bags).
+  -setkeys     Keys to identify set objects
+  -yaml        Read and write YAML instead of JSON.
+  -port=N      Serve web UI on port N
+  -precision=N Maximum absolute difference for numbers to be equal.
+               Example: -precision=0.00001
+  -f=FORMAT    Read and write diff in FORMAT "jd" (default), "patch" (RFC 6902) or
+               "merge" (RFC 7386)
+  -t=FORMATS   Translate FILE1 between FORMATS. Supported formats are "jd",
+               "patch" (RFC 6902), "merge" (RFC 7386), "json" and "yaml".
+               FORMATS are provided as a pair separated by "2". E.g.
+               "yaml2json" or "jd2patch".
+
+Examples:
+  jd a.json b.json
+  cat b.json | jd a.json
+  jd -o patch a.json b.json; jd patch a.json
+  jd -set a.json b.json
+  jd -f patch a.json b.json
+  jd -f merge a.json b.json
+
+Version: {version}
+"#;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 enum OutputFormat {
@@ -36,19 +74,16 @@ impl Default for OutputFormat {
 #[derive(Debug, Parser)]
 #[command(
     name = "jd",
-    about = "Diff and patch JSON and YAML documents.",
-    version = VERSION_BANNER,
+    disable_help_flag = true,
     disable_help_subcommand = true,
     disable_version_flag = true,
-    arg_required_else_help = false,
+    override_usage = "jd [OPTION]... FILE1 [FILE2]"
 )]
 struct Cli {
-    /// Print version information and exit.
-    #[arg(
-        long = "version",
-        action = ArgAction::SetTrue,
-        help = "Print version information and exit.",
-    )]
+    #[arg(long = "help", short = 'h', action = ArgAction::SetTrue, hide = true)]
+    help: bool,
+
+    #[arg(long = "version", action = ArgAction::SetTrue, hide = true)]
     version: bool,
 
     /// Render diff output using ANSI colors.
@@ -99,6 +134,9 @@ struct Cli {
     #[arg(long = "port")]
     port: Option<u16>,
 
+    #[arg(long = "v2", action = ArgAction::SetTrue, hide = true)]
+    v2: bool,
+
     /// Positional inputs (FILE1 \[FILE2]).
     #[arg()]
     inputs: Vec<OsString>,
@@ -117,6 +155,11 @@ fn main() {
 fn try_main() -> Result<i32> {
     let args = canonicalize_args(std::env::args_os());
     let cli = Cli::parse_from(args);
+
+    if cli.help {
+        print!("{}", help_text());
+        return Ok(0);
+    }
 
     if cli.version {
         println!("{VERSION_BANNER}");
@@ -173,9 +216,7 @@ fn run_diff(cli: &Cli) -> Result<i32> {
             InputSource::File(path_from(&cli.inputs[1])?),
         ),
         _ => {
-            return Err(anyhow!(
-                "Usage: jd [OPTION]... FILE1 [FILE2] -- expected one or two positional arguments"
-            ))
+            return Err(anyhow!("{}", help_text()));
         }
     };
 
@@ -204,7 +245,13 @@ fn run_diff(cli: &Cli) -> Result<i32> {
             (rendered, have_diff)
         }
         OutputFormat::Merge => {
-            let rendered = diff.render_merge().context("failed to render merge patch")?;
+            let patch = merge_patch(&lhs, &rhs).unwrap_or_else(|| Node::Object(BTreeMap::new()));
+            let rendered = patch
+                .to_json_value()
+                .map(|value| serde_json::to_string(&value))
+                .transpose()
+                .context("failed to serialize merge patch")?
+                .unwrap_or_else(|| "{}".to_string());
             let have_diff = rendered != "{}";
             (rendered, have_diff)
         }
@@ -256,12 +303,55 @@ fn parse_node(input: &str, yaml: bool) -> Result<Node> {
     }
 }
 
-fn build_options(cli: &Cli) -> Result<DiffOptions> {
-    let mut options = DiffOptions::default();
-    if let Some(precision) = cli.precision {
-        options = options.with_precision(precision).map_err(|err| anyhow!(err))?;
-    }
+fn build_options(_cli: &Cli) -> Result<DiffOptions> {
+    let options = DiffOptions::default();
     Ok(options)
+}
+
+fn merge_patch(lhs: &Node, rhs: &Node) -> Option<Node> {
+    match (lhs, rhs) {
+        (Node::Object(a), Node::Object(b)) => {
+            let mut keys: BTreeSet<&String> = BTreeSet::new();
+            keys.extend(a.keys());
+            keys.extend(b.keys());
+
+            let mut map = BTreeMap::new();
+            for key in keys {
+                match (a.get(key), b.get(key)) {
+                    (Some(left), Some(right)) => {
+                        if let Some(child) = merge_patch(left, right) {
+                            match &child {
+                                Node::Object(children) if children.is_empty() => {}
+                                _ => {
+                                    map.insert(key.clone(), child);
+                                }
+                            }
+                        }
+                    }
+                    (Some(_), None) => {
+                        map.insert(key.clone(), Node::Null);
+                    }
+                    (None, Some(value)) => {
+                        map.insert(key.clone(), value.clone());
+                    }
+                    (None, None) => {}
+                }
+            }
+
+            if map.is_empty() {
+                None
+            } else {
+                Some(Node::Object(map))
+            }
+        }
+        _ => {
+            if lhs == rhs {
+                None
+            } else {
+                Some(rhs.clone())
+            }
+        }
+    }
 }
 
 fn canonicalize_args<I>(args: I) -> Vec<OsString>
@@ -276,6 +366,7 @@ where
         }
         match arg.to_str() {
             Some("-help") => canonicalized.push(OsString::from("--help")),
+            Some("-h") => canonicalized.push(OsString::from("--help")),
             Some("-version") => canonicalized.push(OsString::from("--version")),
             Some("-color") => canonicalized.push(OsString::from("--color")),
             Some("-yaml") => canonicalized.push(OsString::from("--yaml")),
@@ -283,6 +374,7 @@ where
             Some("-mset") => canonicalized.push(OsString::from("--mset")),
             Some("-precision") => canonicalized.push(OsString::from("--precision")),
             Some("-setkeys") => canonicalized.push(OsString::from("--setkeys")),
+            Some("-v2") => canonicalized.push(OsString::from("--v2")),
             Some(other) if other.starts_with("-f=") => {
                 canonicalized.push(OsString::from("-f"));
                 canonicalized.push(OsString::from(other.trim_start_matches("-f=")));
@@ -301,6 +393,10 @@ where
     canonicalized
 }
 
+fn help_text() -> String {
+    HELP_TEMPLATE.replace("{version}", VERSION_NUMBER)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{canonicalize_args, OutputFormat};
@@ -311,14 +407,18 @@ mod tests {
         let input = vec![
             OsString::from("jd"),
             OsString::from("-help"),
+            OsString::from("-h"),
             OsString::from("-version"),
+            OsString::from("-v2"),
             OsString::from("--other"),
         ];
         let canonicalized = canonicalize_args(input.clone());
         assert_eq!(canonicalized[0], "jd");
         assert_eq!(canonicalized[1], "--help");
-        assert_eq!(canonicalized[2], "--version");
-        assert_eq!(canonicalized[3], "--other");
+        assert_eq!(canonicalized[2], "--help");
+        assert_eq!(canonicalized[3], "--version");
+        assert_eq!(canonicalized[4], "--v2");
+        assert_eq!(canonicalized[5], "--other");
     }
 
     #[test]
