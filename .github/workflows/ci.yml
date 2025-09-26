@@ -33,6 +33,9 @@ jobs:
         run: cargo test --workspace --all-targets
       - name: Cargo test docs
         run: cargo test --workspace --doc
+      - name: Parity corpus (jd v2.2.2)
+        if: runner.os == 'Linux'
+        run: ./scripts/run_parity.sh
 
   quality-gates:
     name: docs & license gates
